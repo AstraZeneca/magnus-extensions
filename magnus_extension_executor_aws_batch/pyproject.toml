@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "magnus_extension_aws_batch_traverse"
+version = "0.1.0"
+description = "Self traversing compute in AWS batch"
+authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>", "Vijay Vammi <mesanthu@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/AstraZeneca/magnus-extensions/"
+repository = "https://github.com/AstraZeneca/magnus-extensions/"
+documentation = "https://astrazeneca.github.io/magnus-extensions/"
+
+[tool.poetry.dependencies]
+python = "^3.6.1"
+magnus = "*"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+autopep8 = "*"
+pylint = "*"
+mypy = "^0.931"
+tox = "^3.24.5"
+
+# Use this section to provide the namespace to extend and implementation
+[tool.poetry.plugins."magnus.executor.BaseExecutor"]
+"local-aws-batch" = "aws_batch_traverse:LocalAWSBatchExecutor"
+
+# Use this provide namespace of the integration
+# naming convention: {executor.name}-{service}-{service.name}
+[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+"local-aws-batch-run_log_store-file-system" = "integration:LocalAWSBatchComputeRunLogStoreFileSystem"
+"local-aws-batch-run_log_store-buffered" = "integration:LocalAWSBatchComputeRunLogStoreBuffered"
+"local-aws-batch-catalog-file-system" = "integration:LocalAWSBatchComputeCatalogFileSystem"
+"local-aws-batch-secrets-dotenv" = "integration:LocalAWSBatchComputeSecretsDotEnv"
+"local-aws-batch-secrets-aws-secrets-manager" = "integration:LocalAWSBatchComputeAWSSecrets"
+"local-aws-batch-catalog-s3" = "integration:LocalAWSBatchComputeS3Catalog"
+"local-aws-batch-run_log_store-s3" = "integration:LocalAWSBatchComputeS3Store"
+
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
