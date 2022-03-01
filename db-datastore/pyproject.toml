@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "magnus_extension_datastore_db"
+version = "0.1.0"
+description = "Magnus extension for DB as run log store"
+authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/AstraZeneca/magnus-extensions/"
+repository = "https://github.com/AstraZeneca/magnus-extensions/"
+documentation = "https://astrazeneca.github.io/magnus-extensions/"
+
+[tool.poetry.dependencies]
+python = "^3.6.1"
+magnus = "*"
+sqlalchemy = "*"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+autopep8 = "*"
+pylint = "*"
+mypy = "^0.931"
+tox = "^3.24.5"
+
+# Use this section to provide the namespace to extend and implementation
+[tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
+"db" = "magnus_extension_datastore_db.db:DBStore"
+
+# Use this provide namespace of the integration
+# naming convention: {executor.name}-{service}-{service.name}
+[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+"local-container-run_log_store-db" = "magnus_extension_datastore_db.integration:LocalContainerComputeDBStore"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
