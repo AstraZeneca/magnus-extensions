@@ -65,7 +65,7 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
 
         try:
             with open(temp_file.name, 'w', encoding='utf-8') as fw:
-                json.dump(run_log.to_dict(), fw, ensure_ascii=True, indent=4)  # pylint: disable=no-member
+                json.dump(run_log.dict(), fw, ensure_ascii=True, indent=4)  # pylint: disable=no-member
 
             object_key = f'{run_log.run_id}.json'
             s3_client.upload_file(temp_file.name, self.s3_bucket, object_key)
@@ -100,7 +100,7 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
             s3_client.download_file(self.s3_bucket, key, temp_file.name)
 
             json_str = json.load(open(temp_file.name, 'rb'))
-            run_log = RunLog.decode_from_dict(json_str)
+            run_log = RunLog(**json_str)
             return run_log
         except botocore.exceptions.ClientError as _e:
             if _e.response['Error']['Code'] == "404":
@@ -114,7 +114,7 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
         # Creates a Run log
         # Adds it to the db
         logger.info(f'{self.service_name} Creating a Run Log for : {run_id}')
-        run_log = RunLog(run_id, status=defaults.CREATED)
+        run_log = RunLog(run_id=run_id, status=defaults.CREATED)
         self.write_to_bucket(run_log)
         return run_log
 

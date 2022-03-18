@@ -15,7 +15,6 @@ magnus = "*"
 magnus_extension_aws_config = "*"
 
 
-
 [tool.poetry.dev-dependencies]
 pytest = "*"
 pytest-cov = "*"
