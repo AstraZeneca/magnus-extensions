@@ -12,6 +12,7 @@ documentation = "https://astrazeneca.github.io/magnus-extensions/"
 [tool.poetry.dependencies]
 python = "^3.7.1"
 magnus = "*"
+kubernetes = "*"
 
 
 [tool.poetry.dev-dependencies]
