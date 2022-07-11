@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "k8s-poller"
+version = "0.1.0"
+description = "Description you want to give"
+authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>", "Vignesh Ramakrishnan <vignesh.ramakrishnan3@astrazeneca.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://github.com/AstraZeneca/magnus-extensions/"
+repository = "https://github.com/AstraZeneca/magnus-extensions/"
+documentation = "https://astrazeneca.github.io/magnus-extensions/"
+
+[tool.poetry.dependencies]
+python = "^3.7.1"
+magnus = "*"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+autopep8 = "*"
+pylint = "*"
+mypy = "^0.931"
+tox = "^3.24.5"
+
+# Use this section to provide the namespace to extend and implementation
+#[tool.poetry.plugins."magnus.secrets.BaseSecrets"]
+
+
+# Use this provide namespace of the integration
+# naming convention: {executor.name}-{service}-{service.name}
+#[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
