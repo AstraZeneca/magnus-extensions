@@ -67,7 +67,6 @@ class K8sExecutor(BaseExecutor):
             time.sleep(self.polling_time)
 
     def _submit_k8s_job(self, node, map_variable: dict, **kwargs):
-        # TODO
         """
         "labels": {
             "project": "Dataiku"
@@ -78,15 +77,15 @@ class K8sExecutor(BaseExecutor):
         logger.info(f'Triggering a batch job with {command}')
 
         mode_config = self.resolve_node_config(node)
-        resource_configuration = mode_config.get('resource', None)
 
+        image_name = mode_config.get('image_name', None)
+        assert image_name is not None, "Complete image_name should be passed for k8s execution"
+
+        resource_configuration = mode_config.get('resource', None)
         volume_configuration = mode_config.get('volume', None)
 
         labels = mode_config.get('label', {})
         labels['job_name'] = re.sub('[^A-Za-z0-9]+', '-', f'{self.run_id}-{node.internal_name}')[:63]
-
-        image_name = mode_config.get('image_name', None)
-        assert image_name is not None, "Complete image_name should be passed for k8s execution"
 
         k8s_batch = self._client.BatchV1Api()
 
