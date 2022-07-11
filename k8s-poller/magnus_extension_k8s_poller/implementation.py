@@ -1,6 +1,6 @@
 import logging
 import json
-from time import time
+import time
 
 import re
 from kubernetes import client, config
@@ -54,7 +54,6 @@ class K8sExecutor(BaseExecutor):
         Max completion Time in seconds for k8s job
         """
         return self.config.get('job_ttl', self.DEFAULT_JOB_TTL)
-        
 
     def is_parallel_execution(self):
         if self.config and 'enable_parallel' in self.config:
@@ -63,21 +62,21 @@ class K8sExecutor(BaseExecutor):
         return True
 
     def trigger_job(self, node: BaseNode, map_variable: dict = None, **kwargs):
-        self._submit_k8s_job()
+        self._submit_k8s_job(node, map_variable)
         while self._poll_k8s_job():
-            time.time.sleep(self.polling_time)
-    
-    def _submit_k8s_job(self, node, map_variable:dict, **kwargs):
-        #TODO
+            time.sleep(self.polling_time)
+
+    def _submit_k8s_job(self, node, map_variable: dict, **kwargs):
+        # TODO
         """
         "labels": {
             "project": "Dataiku"
         },
         """
-        
+
         command = utils.get_node_execution_command(self, node, map_variable=map_variable)
         logger.info(f'Triggering a batch job with {command}')
-        
+
         mode_config = self.resolve_node_config(node)
         resource_configuration = mode_config.get('resource', None)
 
@@ -85,7 +84,7 @@ class K8sExecutor(BaseExecutor):
 
         labels = mode_config.get('label', {})
         labels['job_name'] = re.sub('[^A-Za-z0-9]+', '-', f'{self.run_id}-{node.internal_name}')[:63]
-        
+
         image_name = mode_config.get('image_name', None)
         assert image_name is not None, "Complete image_name should be passed for k8s execution"
 
@@ -102,13 +101,12 @@ class K8sExecutor(BaseExecutor):
         # if volume_configuration:
         #     pod_volume_template = self.create_pod_volume_template()
         pod_spec = self._client.V1PodSpec(volumes=pod_volume_template,
-                                        restart_policy='Never',
-                                        containers=[base_container])
+                                          restart_policy='Never',
+                                          containers=[base_container])
 
         pod_template = self._client.V1PodTemplateSpec(
-                    metadata=client.V1ObjectMeta(labels=labels),
-                    spec=pod_spec)
-
+            metadata=client.V1ObjectMeta(labels=labels),
+            spec=pod_spec)
 
         job_spec = client.V1JobSpec(template=pod_template, backoff_limit=2)
 
@@ -122,12 +120,9 @@ class K8sExecutor(BaseExecutor):
             metadata=client.V1ObjectMeta(name=labels['job_name']),
             spec=job_spec)
 
-
         k8s_batch.create_namespaced_job(
-                        body=job,
-                        namespace=self.namespace)
-
+            body=job,
+            namespace=self.namespace)
 
     def _poll_k8s_job(self):
-        return True
-
+        return False

@@ -3,7 +3,8 @@ mode:
   config:
     image_name: harbor.csis.astrazeneca.net/dataiku/hello-magnus:latest
     namespace: test
-    config_path: /Users/krxg148/workspace/coderepo/cfe/dataiku-plugins/container_orchestration/config/config
+    config_path: ~/.kubeconfig
+
 dag:
   description: Getting started
   start_at: step parameters

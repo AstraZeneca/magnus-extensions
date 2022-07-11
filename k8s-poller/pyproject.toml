@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "k8s-poller"
+name = "magnus_extension_k8s_poller"
 version = "0.1.0"
 description = "Description you want to give"
 authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>", "Vignesh Ramakrishnan <vignesh.ramakrishnan3@astrazeneca.com>"]
@@ -26,7 +26,7 @@ tox = "^3.24.5"
 
 # Use this section to provide the namespace to extend and implementation
 [tool.poetry.plugins."magnus.executor.BaseExecutor"]
-"k8s-poller" = "magnus_extension_k8s_poller.implementation.K8sExecutor"
+"k8s-poller" = "magnus_extension_k8s_poller.implementation:K8sExecutor"
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
