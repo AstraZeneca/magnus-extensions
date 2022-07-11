@@ -1,0 +1,16 @@
+mode:
+  type: aws-batch-traverse
+  config:
+    aws_batch_job_definition: dat-carbon-mybatchjob-job-definition
+    aws_batch_job_queue: dat-carbon-mybatch-job-queue
+    region: eu-west-1
+    tags:
+        Owner: carbon
+    aws_profile: dat-carbon
+
+run_log_store:
+  type: s3
+  config:
+    s3_bucket: dat-carbon-runlog-eu-west-1-396760584530
+    region: eu-west-1
+    aws_profile: dat-carbon

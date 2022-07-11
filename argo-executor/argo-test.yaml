@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: magnus-dag-
+spec:
+  entrypoint: whalesay
+  serviceAccountName: default-editor
+  templates:
+  - name: whalesay
+    dag:
+      tasks:
+      - name: whalesay-template
+        template: whalesay-template
+  - name: whalesay-template
+    container:
+      image: harbor.csis.astrazeneca.net/vijay-test/argo-test:latest
+      command: [echo]
+      args: ["hello world"]
+      resources:                # limit the resources
+        limits:
+          memory: 32Mi
+          cpu: 100m
+  

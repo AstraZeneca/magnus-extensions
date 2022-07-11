@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: magnus-dag-
+spec:
+  entrypoint: magnus-dag
+  serviceAccountName: pipeline-runner
+  templates:
+    - name: default-template
+      container:
+        image: harbor.csis.astrazeneca.net/vijay-test/argo-test:latest
+        resources:
+          limits:
+            memory: 2G
+            cpu: "1"
+            ephemeral-storage: "2Gi"
+    - name: step-parameters-template
+      template: default-template
+      container:
+        image: harbor.csis.astrazeneca.net/vijay-test/argo-test:latest
+        command:
+          - magnus
+          - execute_single_node
+          - "{{workflow.uid}}"
+          - step%parameters
+          - --file
+          - getting-started.yaml
+          - --config-file
+          - config.yaml
+          - --parameters-file
+          - parameters.yaml
+
+    - name: step-shell-template
+      template: default-template
+      container:
+        image: harbor.csis.astrazeneca.net/vijay-test/argo-test:latest
+        command:
+          - magnus
+          - execute_single_node
+          - "{{workflow.uid}}"
+          - step%shell
+          - --file
+          - getting-started.yaml
+          - --config-file
+          - config.yaml
+          - --parameters-file
+          - parameters.yaml
+    - name: magnus-dag
+      dag:
+        tasks:
+          - name: step-parameters
+            template: step-parameters-template
+          - name: step-shell
+            template: step-shell-template
+            dependencies:
+              - step-parameters

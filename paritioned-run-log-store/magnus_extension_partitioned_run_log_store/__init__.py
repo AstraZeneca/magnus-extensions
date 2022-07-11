@@ -1,0 +1,1 @@
+from magnus_extension_partitioned_run_log_store.implementation import PartitionedDataStore

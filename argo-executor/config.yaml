@@ -1,0 +1,7 @@
+mode:
+  type: argo-workflow
+  config:
+    image: harbor.csis.astrazeneca.net/vijay-test/argo-test:latest
+  
+run_log_store:
+  type: file-system

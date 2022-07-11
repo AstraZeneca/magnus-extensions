@@ -13,6 +13,7 @@ documentation = "https://astrazeneca.github.io/magnus-extensions/"
 python = "^3.6.1"
 magnus = "*"
 magnus_extension_aws_config = "*"
+magnus_extension_datastore_s3 = "*"
 
 
 [tool.poetry.dev-dependencies]

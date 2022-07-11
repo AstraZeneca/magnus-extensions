@@ -1,0 +1,38 @@
+{
+    "name": "step shell",
+    "internal_name": "step shell",
+    "status": "SUCCESS",
+    "step_type": "task",
+    "message": "",
+    "mock": false,
+    "code_identities": [
+        {
+            "code_identifier": "3856a96f19126dcaf4c5408ee1d826613bfcbeea",
+            "code_identifier_type": "git",
+            "code_identifier_dependable": false,
+            "code_identifier_url": "https://github.com/AstraZeneca/magnus-extensions.git",
+            "code_identifier_message": "changes found in aws-batch-executor/pyproject.toml"
+        }
+    ],
+    "attempts": [
+        {
+            "attempt_number": 0,
+            "start_time": "2022-04-26 08:44:07.209778",
+            "end_time": "2022-04-26 08:44:07.222263",
+            "duration": "0:00:00.012485",
+            "status": "SUCCESS",
+            "message": ""
+        }
+    ],
+    "user_defined_metrics": {},
+    "branches": {},
+    "data_catalog": [
+        {
+            "name": "data.txt",
+            "data_hash": "71a69137210b8a531bb4e0c976370325c350d297909c3ee980859f18ed253e7b",
+            "catalog_relative_path": "20220426084407/data.txt",
+            "catalog_handler_location": ".catalog",
+            "stage": "put"
+        }
+    ]
+}

@@ -1,0 +1,93 @@
+mode:
+  type: aws-sfn
+  config:
+    compute_as: sagemaker-processing # options: lambda, sagemaker-processing, batch?
+    image_uri: ecr_uri
+    role_arn: sagemaker_role_arn
+    NetworkConfig:
+      VpcConfig:
+        SecurityGroupIds:
+          - "${SageMakerSecurityGroup}"
+        Subnets:
+          - "${Subnets}"
+    ProcessingResources:
+      ClusterConfig:
+        InstanceCount: 1
+        InstanceType: 'instance_type'
+        VolumeSizeInGB: 30
+    placeholders:  
+      gpu_compute_resource:
+        ProcessingResources:
+          ClusterConfig:
+            InstanceCount: 2
+            InstanceType: 'gpu_instance_type'
+            VolumeSizeInGB: 30
+
+
+dag:
+  start_at: Initialize execution
+  steps:
+    Initialize execution:
+      type: task
+      command: "lambda x : print(x)"
+      command_type: python-lambda
+      next: Run Preprocessing
+      mode_config:
+        aws-sfn:
+          compute_as: lambda
+          function_arn: "lambda function arn"
+    Run Preprocessing:
+      type: task
+      command: "lambda : print('Preprocessing')"
+      command_type: python-lambda
+      next: Training Jobs
+    Training Jobs:
+      type: parallel
+      next: Ensemble Train
+      branches:
+        Train Transformers:
+          start_at: Train
+          steps:
+            Train:
+              type: task
+              command: "lambda : print('Training transformers')"
+              command_type: python-lambda
+              next: success
+              mode_config:
+                aws-sfn:
+                  gpu_compute_resource:
+            success:
+              type: success
+            fail:
+              type: fail
+        Train Grad boost:
+          start_at: Train
+          steps:
+            Train:
+              type: task
+              command: "lambda : print('Training grad boost')"
+              command_type: python-lambda
+              next: success
+            success:
+              type: success
+            fail:
+              type: fail
+    Ensemble Train:
+      type: task
+      command: "lambda : print('Ensemble training')"
+      command_type: python-lambda
+      next: Publish Deployment Manifest
+    Publish Deployment Manifest:
+      type: task
+      command: "lambda : print('Publishing deployment manifest')"
+      command_type: python-lambda
+      next: success
+    Bundle Up:
+      type: as-is
+      command: "lambda : print('Publishing deployment manifest')"
+      command_type: python-lambda
+      next: success
+    success:
+      type: success
+    fail:
+      type: fail

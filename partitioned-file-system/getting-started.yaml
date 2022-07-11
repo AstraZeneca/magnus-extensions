@@ -1,0 +1,24 @@
+run_log_store:
+  type: partitioned-file-system
+
+dag:
+  description: Getting started
+  start_at: step parameters
+  steps:
+    step parameters:
+      type: task
+      command_type: python-lambda
+      command: "lambda x: {'x': int(x) + 1}"
+      next: step shell
+    step shell:
+      type: task
+      command_type: shell
+      command: mkdir data ; env >> data/data.txt # For Linux/macOS
+      next: success
+      catalog:
+        put:
+          - "*"
+    success:
+      type: success
+    fail:
+      type: fail

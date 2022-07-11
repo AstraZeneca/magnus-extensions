@@ -1,0 +1,30 @@
+{
+    "name": "step parameters",
+    "internal_name": "step parameters",
+    "status": "SUCCESS",
+    "step_type": "task",
+    "message": "",
+    "mock": false,
+    "code_identities": [
+        {
+            "code_identifier": "3856a96f19126dcaf4c5408ee1d826613bfcbeea",
+            "code_identifier_type": "git",
+            "code_identifier_dependable": false,
+            "code_identifier_url": "https://github.com/AstraZeneca/magnus-extensions.git",
+            "code_identifier_message": "changes found in aws-batch-executor/pyproject.toml"
+        }
+    ],
+    "attempts": [
+        {
+            "attempt_number": 0,
+            "start_time": "2022-04-26 08:44:07.155818",
+            "end_time": "2022-04-26 08:44:07.156188",
+            "duration": "0:00:00.000370",
+            "status": "SUCCESS",
+            "message": ""
+        }
+    ],
+    "user_defined_metrics": {},
+    "branches": {},
+    "data_catalog": []
+}
