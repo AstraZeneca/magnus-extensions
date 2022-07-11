@@ -14,4 +14,4 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ADD . /app
 WORKDIR /app
 
-RUN poetry install
+RUN poetry install --no-dev

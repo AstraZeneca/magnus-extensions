@@ -25,8 +25,8 @@ mypy = "^0.931"
 tox = "^3.24.5"
 
 # Use this section to provide the namespace to extend and implementation
-#[tool.poetry.plugins."magnus.secrets.BaseSecrets"]
-
+[tool.poetry.plugins."magnus.executor.BaseExecutor"]
+"k8s-poller" = "magnus_extension_k8s_poller.implementation.K8sExecutor"
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
