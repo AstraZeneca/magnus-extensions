@@ -13,6 +13,7 @@ documentation = "https://astrazeneca.github.io/magnus-extensions/"
 python = "^3.6.1"
 magnus = "*"
 sqlalchemy = "*"
+psycopg2-binary = "^2.9.3"
 
 
 [tool.poetry.dev-dependencies]
