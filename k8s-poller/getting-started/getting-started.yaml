@@ -7,6 +7,16 @@ mode:
     polling_time: 10000
     secret_name: afe-sit
 
+run_log:
+  type: s3
+  config:
+    s3_bucket: # Bucket name, required
+    region: # defaults to eu-west-1
+    use_credentials: True
+
+secrets:
+  type: env-secrets-manager
+
 dag:
   description: Getting started
   start_at: step parameters
