@@ -4,6 +4,8 @@ mode:
     image_name: harbor.csis.astrazeneca.net/dataiku/hello-magnus:latest
     namespace: test
     config_path: ~/.kubeconfig
+    polling_time: 10000
+    secret_name: afe-sit
 
 dag:
   description: Getting started
