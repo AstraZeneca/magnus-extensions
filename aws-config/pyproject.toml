@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magnus_extension_aws_config"
-version = "0.1.0"
+version = "0.1.1"
 description = "Magnus utility extension to provide AWS Configuration mixin"
 authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>"]
 license = "Apache-2.0"
@@ -10,7 +10,7 @@ repository = "https://github.com/AstraZeneca/magnus-extension"
 documentation = "https://astrazeneca.github.io/magnus-extension/"
 
 [tool.poetry.dependencies]
-python = "^3.6.1"
+python = "^3.7.1"
 magnus = "*"
 boto3 = "*"
 

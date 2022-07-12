@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Union
 import os
+from functools import partial
 
 import boto3
 
@@ -70,8 +71,6 @@ class AWSConfigMixin:
         """
         Look for AWS credentials in the environment variables
 
-        TODO: Is AWS_SESSION_TOKEN optional?
-
         Returns:
             dict: AWS credentials as dictionary
         """
@@ -80,11 +79,11 @@ class AWSConfigMixin:
         try:
             aws_credentials['AWS_ACCESS_KEY_ID'] = os.environ['AWS_ACCESS_KEY_ID']
             aws_credentials['AWS_SECRET_ACCESS_KEY'] = os.environ['AWS_SECRET_ACCESS_KEY']
-            aws_credentials['AWS_SESSION_TOKEN'] = os.environ['AWS_SESSION_TOKEN']
+            aws_credentials['AWS_SESSION_TOKEN'] = os.environ.get('AWS_SESSION_TOKEN', None)
         except KeyError as _e:
             msg = (
                 "Expected AWS credentials as part of the environment. Please set AWS_ACCESS_KEY_ID,"
-                "AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN as part of the environment"
+                "AWS_SECRET_ACCESS_KEY as part of the environment"
             )
             raise Exception(msg) from _e
 
@@ -97,8 +96,6 @@ class AWSConfigMixin:
         If we are not using any credentials, we return either a named session or the default session.
         If we are using AWS credentials, we get a session based on the credentials and assume the role.
 
-        TODO: Is assume role optional?
-
         Returns:
             [type]: [description]
         """
@@ -109,16 +106,21 @@ class AWSConfigMixin:
         if not self.config.get('use_credentials', False):
             return boto3.session.Session(profile_name=profile, region_name=region)
 
-        # If we are using creds, we need a role to assume
-        if 'role_arn' not in self.config:
-            raise Exception('Please provide the role to assume as role_arn in the config')
+        # If we are using creds from environment, there are 2 possible scenarios
+        # 1). We want a session with just aws access key and secret
+        # 2). We want a session with a role_arn which might require session_id set up
 
         aws_creds = self.get_aws_credentials_from_env()
 
-        sess = boto3.session.Session(aws_access_key_id=aws_creds['AWS_ACCESS_KEY_ID'],
-                                     aws_secret_access_key=aws_creds['AWS_SECRET_ACCESS_KEY'],
-                                     aws_session_token=aws_creds['AWS_SESSION_TOKEN'],
-                                     region_name=region)
+        partial_sess = partial(boto3.session.Session, aws_access_key_id=aws_creds['AWS_ACCESS_KEY_ID'],
+                               aws_secret_access_key=aws_creds['AWS_SECRET_ACCESS_KEY'],
+                               region_name=region)
+
+        if 'role_arn' not in self.config:
+            logger.info("No Role ARN present in config, assuming a simple session with no STS")
+            return partial_sess()  # Enough information to call the partial
+
+        sess = partial_sess(aws_session_token=aws_creds['AWS_SESSION_TOKEN'])
 
         sts_connection = sess.client('sts')
         assume_role_object = sts_connection.assume_role(
