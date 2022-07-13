@@ -20,7 +20,7 @@ If you are using environmental variables for AWS credentials, please set:
 
 - AWS_ACCESS_KEY_ID: AWS access key
 - AWS_SECRET_ACCESS_KEY: AWS access secret
-- AWS_SESSION_TOKEN: The session token, useful to assume other roles
+- AWS_SESSION_TOKEN: The session token, useful to assume other roles # Optional
 
 
 ## Config parameters
@@ -54,4 +54,4 @@ Defaults to ```False```.
 
 The role to assume after getting the boto3 session.
 
-**This is required if you are using ```use_credentials```.**
+**If a ```role_arn``` is provided, we try to get a session against that, otherwise it will just use the access keys**
