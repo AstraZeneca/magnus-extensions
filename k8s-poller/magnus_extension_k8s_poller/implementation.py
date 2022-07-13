@@ -42,11 +42,11 @@ class K8sExecutor(BaseExecutor):
         return self.config.get('polling_time', self.DEFAULT_POLLING_TIME)
 
     @property
-    def secret_name(self):
+    def secrets_to_use(self):
         """
         Time in seconds to be used for polling k8s job completion
         """
-        return self.config.get('secret_name', None)
+        return self.config.get('secrets_to_use', [])
 
     @property
     def namespace(self):
@@ -97,9 +97,11 @@ class K8sExecutor(BaseExecutor):
         k8s_batch = self._client.BatchV1Api()
 
         secret_configuration = None
-        if self.secret_name:
-            k8s_secret_env_source = self._client.V1SecretEnvSource(name=self.secret_name)
-            secret_configuration =  [self._client.V1EnvFromSource(secret_ref=k8s_secret_env_source)]
+        if len(self.secrets_to_use) > 0:
+            secret_configuration = []
+            for secret_name in self.secrets_to_use:
+                k8s_secret_env_source = self._client.V1SecretEnvSource(name=secret_name)
+                secret_configuration.append(self._client.V1EnvFromSource(secret_ref=k8s_secret_env_source))
 
         base_container = self._client.V1Container(
             name=labels['job_name'],

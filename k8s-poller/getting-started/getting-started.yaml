@@ -5,13 +5,13 @@ mode:
     namespace: test
     config_path: ~/.kubeconfig
     polling_time: 10000
-    secret_name: afe-sit
+    secrets_to_use: ["afe-sit", "aws-afe-dev"]
 
 run_log:
   type: s3
   config:
-    s3_bucket: # Bucket name, required
-    region: # defaults to eu-west-1
+    s3_bucket: az-eu-dataiku-science-development
+    region: eu-west-1 # defaults to eu-west-1
     use_credentials: True
 
 secrets:
