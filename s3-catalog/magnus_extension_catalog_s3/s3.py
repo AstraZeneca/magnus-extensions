@@ -79,10 +79,6 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         page_iter = s3_client.get_paginator('list_objects_v2').paginate(
             Bucket=self.get_bucket_name(), Prefix=s3_prefix)
 
-        for page in page_iter:
-            print(page)
-            #print(list(file['Key'] for file in page['Contents']))
-
         search_name = f'{s3_prefix}/{name}'
         if name == '*':
             search_name = '*'
@@ -90,7 +86,11 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         # TODO windows filename and fnmatch may not play nicely!
         s3_files = []
         for page in page_iter:
-            s3_files += fnmatch.filter([file['Key'] for file in page['Contents']], search_name)
+            try:
+                s3_files += fnmatch.filter([file['Key'] for file in page['Contents']], search_name)
+            except KeyError:
+                logger.warning("Did not find any objects matching the catalog pattern")
+                return
 
         data_catalogs = []
         run_log_store = get_run_log_store()
