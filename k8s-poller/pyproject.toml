@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "magnus_extension_datastore_s3"
-version = "0.1.1"
-description = "Magnus extension for S3 as run log store"
-authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>"]
+name = "magnus_extension_k8s_poller"
+version = "0.1.0"
+description = "Description you want to give"
+authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>", "Vignesh Ramakrishnan <vignesh.ramakrishnan3@astrazeneca.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://github.com/AstraZeneca/magnus-extensions/"
@@ -11,8 +11,8 @@ documentation = "https://astrazeneca.github.io/magnus-extensions/"
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
-magnus = "^0.3.11"
-magnus_extension_aws_config = "^0.1.1"
+magnus = "*"
+kubernetes = "*"
 
 
 [tool.poetry.dev-dependencies]
@@ -25,14 +25,13 @@ mypy = "^0.931"
 tox = "^3.24.5"
 
 # Use this section to provide the namespace to extend and implementation
-[tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
-"s3" = "magnus_extension_datastore_s3.s3:S3Store"
+[tool.poetry.plugins."magnus.executor.BaseExecutor"]
+"k8s-poller" = "magnus_extension_k8s_poller.implementation:K8sExecutor"
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
-[tool.poetry.plugins."magnus.integration.BaseIntegration"]
-"local-container-run_log_store-s3" = "magnus_extension_datastore_s3.integration:LocalContainerComputeS3Store"
-"local-run_log_store-s3" = "magnus_extension_datastore_s3.integration:LocalComputeS3RunLogStore"
+#[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

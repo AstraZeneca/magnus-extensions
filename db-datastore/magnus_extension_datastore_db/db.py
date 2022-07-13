@@ -275,11 +275,11 @@ class DBStore(BaseRunLogStore):
             * Return the log
         """
         logger.info(f'{self.service_name} Creating a Run Log for : {run_id}')
-        run_log = RunLog(run_id, status=defaults.CREATED)
+        run_log = RunLog(run_id=run_id, status=defaults.CREATED)
         self.write_to_db(run_id=run_id,
                          attribute_key='run_log',
                          attribute_type=self.RUNLOG_ATTRIBUTE_TYPE,
-                         attribute_value=json.dumps(run_log.to_dict(), ensure_ascii=True))  # pylint: disable=no-member
+                         attribute_value=json.dumps(run_log.dict(), ensure_ascii=True))  # pylint: disable=no-member
 
         return run_log
 
