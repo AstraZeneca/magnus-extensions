@@ -1,9 +1,11 @@
 import logging
-from tqdm import tqdm
 import time
 import shlex
 import re
-from kubernetes import client, k8s_config
+
+from kubernetes import client
+from kubermetes import config as k8s_config
+from tqdm import tqdm
 
 from magnus import defaults
 from magnus.executor import BaseExecutor
@@ -15,9 +17,22 @@ logger = logging.getLogger(defaults.NAME)
 
 
 class K8sExecutor(BaseExecutor):
+    """
+    Example config:
+    mode:
+      type: k8s-poller
+      config:
+        config_path: Required and should be pointing to the kube config.
+        polling_time: defaults to 30 secs
+        secrets_to_use: A list of secrets to use that are part of K8s secrets manager.
+        namespace: defaults to "default", the namespace to submit the jobs.
+        job_ttl: maximum job run time.
+        enable_parallel: Defaults to True, submit parallel jobs to the K8s cluster
+        image_name: Required, the full name of the docker image.
+    """
     service_name = 'k8s-poller'
     DEFAULT_POLLING_TIME = 30
-    DEFAULT_JOB_TTL = 10000
+    DEFAULT_JOB_TTL = 1000
     DEFAULT_KUBE_NAMESPACE = "default"
 
     def __init__(self, config):
