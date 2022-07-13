@@ -1,0 +1,28 @@
+dag:
+  description: DAG for testing with as-is
+  start_at: step1
+  steps:
+    step1:
+      type: as-is
+      next: step2
+    step2:
+      type: map
+      iterate_on: map_variable_test
+      iterate_as: "x"
+      next: success
+      branch:
+        start_at: step_1
+        steps:
+          step_1:
+            type: task
+            command_type: python-lambda
+            command: "lambda x: print(x)"
+            next: success
+          success:
+            type: success
+          fail:
+            type: fail
+    success:
+      type: success
+    fail:
+      type: fail

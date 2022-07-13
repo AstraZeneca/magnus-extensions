@@ -1,7 +1,8 @@
 import logging
-import json
+from tqdm import tqdm 
+from pickle import TRUE
 import time
-
+import shlex
 import re
 from kubernetes import client, config
 
@@ -10,6 +11,7 @@ from magnus.executor import BaseExecutor
 from magnus import exceptions
 from magnus.nodes import BaseNode
 from magnus import utils
+
 
 
 logger = logging.getLogger(defaults.NAME)
@@ -68,10 +70,16 @@ class K8sExecutor(BaseExecutor):
 
         return True
 
+    def get_job_name(self, node, map_variable) -> str:
+        resolved_name = node.resolve_map_placeholders(name=node.internal_name, map_variable=map_variable)
+        return re.sub('[^A-Za-z0-9]+', '-', f'{self.run_id}-{resolved_name}')[:63]
+
+    
     def trigger_job(self, node: BaseNode, map_variable: dict = None, **kwargs):
-        self._submit_k8s_job(node, map_variable)
-        while self._poll_k8s_job():
-            time.sleep(self.polling_time)
+        self._submit_k8s_job(node=node, map_variable=map_variable)
+        while self._poll_k8s_job(node=node, map_variable=map_variable):
+            for _ in tqdm(range(self.polling_time),desc="waiting..."):
+                time.sleep(1)
 
     def _submit_k8s_job(self, node, map_variable: dict, **kwargs):
         """
@@ -92,7 +100,7 @@ class K8sExecutor(BaseExecutor):
         volume_configuration = mode_config.get('volume', None)
 
         labels = mode_config.get('label', {})
-        labels['job_name'] = re.sub('[^A-Za-z0-9]+', '-', f'{self.run_id}-{node.internal_name}')[:63]
+        labels['job_name'] = self.get_job_name(node=node, map_variable=map_variable)
 
         k8s_batch = self._client.BatchV1Api()
 
@@ -106,7 +114,7 @@ class K8sExecutor(BaseExecutor):
         base_container = self._client.V1Container(
             name=labels['job_name'],
             image=image_name,
-            command=command.split(" "),
+            command=shlex.split(command),
             resources=resource_configuration,
             env_from=secret_configuration,
             image_pull_policy="Always"
@@ -139,5 +147,44 @@ class K8sExecutor(BaseExecutor):
             body=job,
             namespace=self.namespace)
 
-    def _poll_k8s_job(self):
-        return False
+    def _poll_k8s_job(self, node, map_variable):
+
+        KEEP_POLLING = True
+        return_status = KEEP_POLLING
+        k8s_batch = self._client.BatchV1Api()
+        job_name = self.get_job_name(node=node, map_variable=map_variable)
+        job_label = f"job_name={job_name}"
+
+
+        if self.namespace:
+            logger.info(f"Looking for job status in k8s {self.namespace} namespace with label: {job_label}")
+            job_status = k8s_batch.list_namespaced_job(namespace=self.namespace, watch=False,
+                                                label_selector=f'{job_label}')
+        else:
+            logger.info(f"Looking for job status in k8s with label: {job_label}")
+            job_status = k8s_batch.list_job_for_all_namespaces(watch=False,
+                                                             label_selector=f'{job_label}')
+
+        namespace_info = "All" if self.namespace is None else self.namespace
+        assert len(job_status.items) == 1, f"Either no status or more than one status returned for Job {job_name} in {namespace_info}"
+        for i in job_status.items:
+            # id_being_processed = i.metadata.labels['id_being_processed']
+            
+            if i.status.succeeded is not None and i.status.succeeded > 0:
+                logger.warn(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as SUCCESS")
+                return_status = not KEEP_POLLING
+            elif i.status.failed is not None and i.status.failed > 0:
+                logger.warn(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as FAILED")
+                return_status = not KEEP_POLLING
+            elif i.status.active is not None and i.status.active > 0:
+                logger.warn(f"Job {job_name} in {namespace_info} namespace(s) is RUNNING")
+                return_status = KEEP_POLLING
+            else:
+                logger.warn(f"Job {job_name} is yet to be started in {namespace_info} namespace(s)..")
+
+        logger.warn(f"returning {return_status}")
+        return return_status
+
+
+
+

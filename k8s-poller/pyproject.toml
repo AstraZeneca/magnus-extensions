@@ -13,7 +13,9 @@ documentation = "https://astrazeneca.github.io/magnus-extensions/"
 python = "^3.7.1"
 magnus = "^0.3.11"
 kubernetes = "*"
-magnus_extension_datastore_s3 = "^0.1.1"
+magnus-extension-datastore-s3 = "^0.1.2"
+magnus-extension-catalog-s3 = "^0.1.1"
+tqdm = "^4.64.0"
 
 
 [tool.poetry.dev-dependencies]
