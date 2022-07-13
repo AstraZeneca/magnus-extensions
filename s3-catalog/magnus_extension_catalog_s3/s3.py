@@ -98,8 +98,6 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         for file in s3_files:
             file_obj = s3_client.get_object(Bucket=self.get_bucket_name(), Key=file)
 
-            print(file)
-
             # Remove run_id and s3 prefix as they are specific to cataloging method
             write_path = Path(file.replace(f'{run_id}/', '').replace(self.prefix, "").lstrip(os.sep))
 
