@@ -1,17 +1,14 @@
 import logging
-from tqdm import tqdm 
-from pickle import TRUE
+from tqdm import tqdm
 import time
 import shlex
 import re
-from kubernetes import client, config
+from kubernetes import client, k8s_config
 
 from magnus import defaults
 from magnus.executor import BaseExecutor
-from magnus import exceptions
 from magnus.nodes import BaseNode
 from magnus import utils
-
 
 
 logger = logging.getLogger(defaults.NAME)
@@ -33,7 +30,7 @@ class K8sExecutor(BaseExecutor):
 
     @property
     def _client(self):
-        config.load_kube_config(config_file=self.config_path)
+        k8s_config.load_kube_config(config_file=self.config_path)
         return client
 
     @property
@@ -70,22 +67,34 @@ class K8sExecutor(BaseExecutor):
 
         return True
 
-    def get_job_name(self, node, map_variable) -> str:
+    def get_job_name(self, node: BaseNode, map_variable: dict) -> str:
+        """
+        Generate a job name based on the node being executed.
+
+        Args:
+            node (BaseNode): The node being executed
+            map_variable (dict): The map variable if running as a map node
+
+        Returns:
+            str: The job name, maximum size of 63 characters
+        """
         resolved_name = node.resolve_map_placeholders(name=node.internal_name, map_variable=map_variable)
         return re.sub('[^A-Za-z0-9]+', '-', f'{self.run_id}-{resolved_name}')[:63]
 
-    
     def trigger_job(self, node: BaseNode, map_variable: dict = None, **kwargs):
         self._submit_k8s_job(node=node, map_variable=map_variable)
+
         while self._poll_k8s_job(node=node, map_variable=map_variable):
-            for _ in tqdm(range(self.polling_time),desc="waiting..."):
+            for _ in tqdm(range(self.polling_time), desc="waiting..."):
                 time.sleep(1)
 
-    def _submit_k8s_job(self, node, map_variable: dict, **kwargs):
+    def _submit_k8s_job(self, node: BaseNode, map_variable: dict, **kwargs):  # pylint: disable=unused-argument
         """
-        "labels": {
-            "project": "Dataiku"
-        },
+        Submit a job to the K8's cluster
+
+        Args:
+            node (BaseNode): The node being processed
+            map_variable (dict): The map variables if the node is part of a map
         """
 
         command = utils.get_node_execution_command(self, node, map_variable=map_variable)
@@ -97,15 +106,15 @@ class K8sExecutor(BaseExecutor):
         assert image_name is not None, "Complete image_name should be passed for k8s execution"
 
         resource_configuration = mode_config.get('resource', None)
-        volume_configuration = mode_config.get('volume', None)
+        # volume_configuration = mode_config.get('volume', None) # TODO Should this also be a list?
 
-        labels = mode_config.get('label', {})
+        labels = mode_config.get('labels', {})
         labels['job_name'] = self.get_job_name(node=node, map_variable=map_variable)
 
         k8s_batch = self._client.BatchV1Api()
 
         secret_configuration = None
-        if len(self.secrets_to_use) > 0:
+        if self.secrets_to_use:
             secret_configuration = []
             for secret_name in self.secrets_to_use:
                 k8s_secret_env_source = self._client.V1SecretEnvSource(name=secret_name)
@@ -147,44 +156,53 @@ class K8sExecutor(BaseExecutor):
             body=job,
             namespace=self.namespace)
 
-    def _poll_k8s_job(self, node, map_variable):
+    def _poll_k8s_job(self, node: BaseNode, map_variable: dict) -> bool:
+        """
+        Poll the K8's to understand the job status.
 
-        KEEP_POLLING = True
-        return_status = KEEP_POLLING
+        The job could be in one of the status:
+        1). Success: The job succeeded and therefore no polling is required any more. Return False
+        2). Fail: The job failed and therefore no polling is required any more. Return False
+        3). Active: The job is being processed and further polling is required. Return True
+        4). Job queued: The job is yet to start and further polling is required. Return True.
+
+        Args:
+            node (BaseNode): The node being processed
+            map_variable (dict): The map variables if its part of the map node.
+
+        Returns:
+            bool: True if the job is processing or yet to be processed. False if its failed or succeeded.
+        """
         k8s_batch = self._client.BatchV1Api()
         job_name = self.get_job_name(node=node, map_variable=map_variable)
         job_label = f"job_name={job_name}"
 
-
         if self.namespace:
             logger.info(f"Looking for job status in k8s {self.namespace} namespace with label: {job_label}")
             job_status = k8s_batch.list_namespaced_job(namespace=self.namespace, watch=False,
-                                                label_selector=f'{job_label}')
+                                                       label_selector=f'{job_label}')
         else:
+            # TODO: Does this happen in our case?
             logger.info(f"Looking for job status in k8s with label: {job_label}")
             job_status = k8s_batch.list_job_for_all_namespaces(watch=False,
-                                                             label_selector=f'{job_label}')
+                                                               label_selector=f'{job_label}')
 
-        namespace_info = "All" if self.namespace is None else self.namespace
-        assert len(job_status.items) == 1, f"Either no status or more than one status returned for Job {job_name} in {namespace_info}"
+        namespace_info = "All" if self.namespace is None else self.namespace  # TODO: Does this happen to us?
+        assert len(
+            job_status.items) == 1, f"Either no status or more than one status returned for Job {job_name} in {namespace_info}"
+        # TODO: Can the decision be taken by individual items?
         for i in job_status.items:
-            # id_being_processed = i.metadata.labels['id_being_processed']
-            
+
             if i.status.succeeded is not None and i.status.succeeded > 0:
-                logger.warn(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as SUCCESS")
-                return_status = not KEEP_POLLING
+                logger.info(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as SUCCESS")
+                return False
             elif i.status.failed is not None and i.status.failed > 0:
-                logger.warn(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as FAILED")
-                return_status = not KEEP_POLLING
+                logger.info(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as FAILED")
+                return False
             elif i.status.active is not None and i.status.active > 0:
-                logger.warn(f"Job {job_name} in {namespace_info} namespace(s) is RUNNING")
-                return_status = KEEP_POLLING
+                logger.info(f"Job {job_name} in {namespace_info} namespace(s) is RUNNING")
+                return True
             else:
-                logger.warn(f"Job {job_name} is yet to be started in {namespace_info} namespace(s)..")
+                logger.info(f"Job {job_name} is yet to be started in {namespace_info} namespace(s)..")
 
-        logger.warn(f"returning {return_status}")
-        return return_status
-
-
-
-
+        return True
