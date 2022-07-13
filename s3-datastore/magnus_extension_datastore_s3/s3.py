@@ -25,12 +25,13 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
     S3 implementation of Run Log store
 
     Example config:
-    run_log:
+    run_log_store:
       type: s3
       config:
         s3_bucket: The S3 bucket to use
         region: The aws region to use
         aws_profile: The aws profile to use
+        prefix: Any bucket prefix that you want to attach
 
     """
     service_name = 's3'
@@ -50,6 +51,13 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
         """
         return self.config['s3_bucket']
 
+    @property
+    def prefix(self):
+        """
+        Return the prefix if present in the config. Or an empty string
+        """
+        return self.config.get('prefix', "")
+
     def write_to_bucket(self, run_log: RunLog):
         """Writes the run log to S3 bucket
 
@@ -67,7 +75,11 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
             with open(temp_file.name, 'w', encoding='utf-8') as fw:
                 json.dump(run_log.dict(), fw, ensure_ascii=True, indent=4)  # pylint: disable=no-member
 
-            object_key = f'{run_log.run_id}.json'
+            if self.prefix:
+                object_key = f'{self.prefix}/{run_log.run_id}.json'
+            else:
+                object_key = f'{run_log.run_id}.json'
+
             s3_client.upload_file(temp_file.name, self.s3_bucket, object_key)
         except botocore.exceptions.ClientError as _e:
             if _e.response['Error']['Code'] == "404":
@@ -95,7 +107,11 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
         temp_file = tempfile.NamedTemporaryFile()
 
         try:
-            key = f'{run_id}.json'
+            if self.prefix:
+                key = f'{self.prefix}/{run_id}.json'
+            else:
+                key = f'{run_id}.json'
+
             logger.info(f'Trying to download {key} from {self.s3_bucket}')
             s3_client.download_file(self.s3_bucket, key, temp_file.name)
 

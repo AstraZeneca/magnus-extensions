@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magnus_extension_datastore_s3"
-version = "0.1.1"
+version = "0.1.2"
 description = "Magnus extension for S3 as run log store"
 authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>"]
 license = "Apache-2.0"
