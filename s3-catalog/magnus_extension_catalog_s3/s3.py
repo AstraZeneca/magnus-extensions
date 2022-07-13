@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import os
 import fnmatch
 
 from magnus.catalog import BaseCatalog
@@ -20,6 +21,8 @@ except ImportError as _e:  # pragma: no cover
 
 class S3Catalog(BaseCatalog, AWSConfigMixin):
     """
+    TODO: The catalog relative paths might be wrong and sync between runs might not work
+
     A S3 based catalog.
 
     Example config:
@@ -30,6 +33,7 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         s3_bucket: Bucket name
         region: Region if we are using
         aws_profile: The profile to use or default
+        prefix: Any prefix in S3 to search for the catalog files
     """
     service_name = 's3'
 
@@ -37,6 +41,13 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         super().__init__(config, **kwargs)
         if not (self.config and 's3_bucket' in self.config):
             raise Exception('config with at least s3 bucket name should be provided for catalog type S3')
+
+    @property
+    def prefix(self):
+        """
+        Return the prefix if present in the config. Or an empty string
+        """
+        return self.config.get('prefix', "")
 
     def get(self, name, run_id, compute_data_folder=None, **kwargs):
         """Gets files from S3 store and moves to compute data folder
@@ -50,35 +61,46 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
             list: List of data catalogs
         """
         copy_to = self.compute_data_folder
+
         if compute_data_folder:
             copy_to = compute_data_folder
         utils.safe_make_dir(copy_to)
-        copy_to_path = Path(copy_to)
 
         s3_client = self.get_s3()
         self.check_s3_access(s3_client, self.get_bucket_name())
 
-        # The run_id should be post fixed with a slash to avoid the JSON file being cataloged
+        s3_prefix = f'{run_id}/'
+        if self.prefix:
+            s3_prefix = f'{self.prefix}/{s3_prefix}'
+
+        if not copy_to == '.':
+            s3_prefix = f'{s3_prefix}{copy_to}/'
+
         page_iter = s3_client.get_paginator('list_objects_v2').paginate(
-            Bucket=self.get_bucket_name(), Prefix=run_id + '/')
+            Bucket=self.get_bucket_name(), Prefix=s3_prefix)
 
-        for page in page_iter:
-            print(list(file['Key'] for file in page['Contents']))
-
-        search_name = f'{run_id}/{name}'
+        search_name = f'{s3_prefix}/{name}'
         if name == '*':
             search_name = '*'
 
         # TODO windows filename and fnmatch may not play nicely!
         s3_files = []
         for page in page_iter:
-            s3_files += fnmatch.filter([file['Key'] for file in page['Contents']], search_name)
+            try:
+                s3_files += fnmatch.filter([file['Key'] for file in page['Contents']], search_name)
+            except KeyError:
+                logger.warning("Did not find any objects matching the catalog pattern")
+                return
 
         data_catalogs = []
         run_log_store = get_run_log_store()
+
         for file in s3_files:
             file_obj = s3_client.get_object(Bucket=self.get_bucket_name(), Key=file)
-            write_path = copy_to_path.joinpath(file.replace(f'{run_id}/', ''))
+
+            # Remove run_id and s3 prefix as they are specific to cataloging method
+            write_path = Path(file.replace(f'{run_id}/', '').replace(self.prefix, "").lstrip(os.sep))
+
             with write_path.open('wb') as f:
                 f.write(file_obj['Body'].read())
 
@@ -118,9 +140,15 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         self.check_s3_access(s3_client, bucket=self.get_bucket_name())
 
         glob_files = Path(copy_from).glob(name)
+
         data_catalogs = []
         run_log_store = get_run_log_store()
+
         for file in glob_files:
+            if file.is_dir():
+                # Need not add a data catalog for the folder
+                continue
+
             data_catalog = run_log_store.create_data_catalog(str(file.name))
             data_catalog.catalog_handler_location = self.get_bucket_name()
             data_catalog.catalog_relative_path = run_id + '/' + str(file.name)
@@ -130,7 +158,13 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
 
             if is_catalog_out_of_sync(data_catalog, synced_catalogs):
                 logger.info(f'{data_catalog.name} was found to be changed, syncing')
-                file_key = f'{run_id}/{file.name}'
+
+                relative_file_path = file.relative_to('.')
+
+                file_key = f'{run_id}/{relative_file_path}'
+                if self.prefix:
+                    file_key = f'{self.prefix}/{file_key}'
+
                 s3_client.upload_file(Filename=str(file.resolve()), Bucket=self.get_bucket_name(),
                                       Key=file_key)
             else:
