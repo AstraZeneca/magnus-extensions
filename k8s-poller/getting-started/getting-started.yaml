@@ -5,7 +5,7 @@ mode:
     namespace: test
     config_path: ~/.kubeconfig
     polling_time: 10000
-    secrets_to_use: ["afe-sit", "aws-afe-dev"]
+    secrets_to_use: ["afe-sit", "afe-aws-dev"]
 
 run_log:
   type: s3
