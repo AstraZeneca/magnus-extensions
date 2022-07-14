@@ -18,6 +18,8 @@ logger = logging.getLogger(defaults.NAME)
 
 class K8sExecutor(BaseExecutor):
     """
+    TODO: Might suffer at submitting high number of jobs.
+
     Example config:
     mode:
       type: k8s-poller
@@ -192,32 +194,25 @@ class K8sExecutor(BaseExecutor):
         job_name = self.get_job_name(node=node, map_variable=map_variable)
         job_label = f"job_name={job_name}"
 
-        if self.namespace:
-            logger.info(f"Looking for job status in k8s {self.namespace} namespace with label: {job_label}")
-            job_status = k8s_batch.list_namespaced_job(namespace=self.namespace, watch=False,
-                                                       label_selector=f'{job_label}')
-        else:
-            # TODO: Does this happen in our case?
-            logger.info(f"Looking for job status in k8s with label: {job_label}")
-            job_status = k8s_batch.list_job_for_all_namespaces(watch=False,
-                                                               label_selector=f'{job_label}')
+        logger.info(f"Looking for job status in k8s {self.namespace} namespace with label: {job_label}")
+        job_status = k8s_batch.list_namespaced_job(namespace=self.namespace, watch=False,
+                                                   label_selector=f'{job_label}')
 
-        namespace_info = "All" if self.namespace is None else self.namespace  # TODO: Does this happen to us?
         assert len(
-            job_status.items) == 1, f"Either no status or more than one status returned for Job {job_name} in {namespace_info}"
-        # TODO: Can the decision be taken by individual items?
+            job_status.items) == 1, f"Either no status or more than one status returned for Job {job_name} in {self.namespace}"
+
         for i in job_status.items:
 
             if i.status.succeeded is not None and i.status.succeeded > 0:
-                logger.info(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as SUCCESS")
+                logger.info(f"Job {job_name} in {self.namespace} namespace(s) is completed with status as SUCCESS")
                 return False
             elif i.status.failed is not None and i.status.failed > 0:
-                logger.info(f"Job {job_name} in {namespace_info} namespace(s) is completed with status as FAILED")
+                logger.info(f"Job {job_name} in {self.namespace} namespace(s) is completed with status as FAILED")
                 return False
             elif i.status.active is not None and i.status.active > 0:
-                logger.info(f"Job {job_name} in {namespace_info} namespace(s) is RUNNING")
+                logger.info(f"Job {job_name} in {self.namespace} namespace(s) is RUNNING")
                 return True
             else:
-                logger.info(f"Job {job_name} is yet to be started in {namespace_info} namespace(s)..")
+                logger.info(f"Job {job_name} is yet to be started in {self.namespace} namespace(s).")
 
         return True

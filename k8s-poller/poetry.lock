@@ -47,38 +47,6 @@ pycodestyle = ">=2.8.0"
 toml = "*"
 
 [[package]]
-name = "boto3"
-version = "1.24.28"
-description = "The AWS SDK for Python"
-category = "main"
-optional = false
-python-versions = ">= 3.7"
-
-[package.dependencies]
-botocore = ">=1.27.28,<1.28.0"
-jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.6.0,<0.7.0"
-
-[package.extras]
-crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
-
-[[package]]
-name = "botocore"
-version = "1.27.28"
-description = "Low-level, data-driven core of boto 3."
-category = "main"
-optional = false
-python-versions = ">= 3.7"
-
-[package.dependencies]
-jmespath = ">=0.7.1,<2.0.0"
-python-dateutil = ">=2.1,<3.0.0"
-urllib3 = ">=1.25.4,<1.27"
-
-[package.extras]
-crt = ["awscrt (==0.13.8)"]
-
-[[package]]
 name = "cachetools"
 version = "5.2.0"
 description = "Extensible memoizing collections and decorators"
@@ -267,14 +235,6 @@ colors = ["colorama (>=0.4.3,<0.5.0)"]
 plugins = ["setuptools"]
 
 [[package]]
-name = "jmespath"
-version = "1.0.1"
-description = "JSON Matching Expressions"
-category = "main"
-optional = false
-python-versions = ">=3.7"
-
-[[package]]
 name = "kubernetes"
 version = "24.2.0"
 description = "Kubernetes python client"
@@ -324,42 +284,6 @@ yachalk = "*"
 [package.extras]
 docker = ["docker"]
 notebook = ["papermill"]
-
-[[package]]
-name = "magnus-extension-aws-config"
-version = "0.1.1"
-description = "Magnus utility extension to provide AWS Configuration mixin"
-category = "main"
-optional = false
-python-versions = ">=3.7.1,<4.0.0"
-
-[package.dependencies]
-boto3 = "*"
-magnus = "*"
-
-[[package]]
-name = "magnus-extension-catalog-s3"
-version = "0.1.1"
-description = "Magnus extension to provide S3 Catalog functionality"
-category = "main"
-optional = false
-python-versions = ">=3.7.1,<4.0.0"
-
-[package.dependencies]
-magnus = "*"
-magnus_extension_aws_config = ">=0.1.1,<0.2.0"
-
-[[package]]
-name = "magnus-extension-datastore-s3"
-version = "0.1.2"
-description = "Magnus extension for S3 as run log store"
-category = "main"
-optional = false
-python-versions = ">=3.7.1,<4.0.0"
-
-[package.dependencies]
-magnus = ">=0.3.11,<0.4.0"
-magnus_extension_aws_config = ">=0.1.1,<0.2.0"
 
 [[package]]
 name = "mccabe"
@@ -674,20 +598,6 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
-name = "s3transfer"
-version = "0.6.0"
-description = "An Amazon S3 Transfer Manager"
-category = "main"
-optional = false
-python-versions = ">= 3.7"
-
-[package.dependencies]
-botocore = ">=1.12.36,<2.0a.0"
-
-[package.extras]
-crt = ["botocore[crt] (>=1.20.29,<2.0a.0)"]
-
-[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -858,7 +768,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "546f4d65dc2101d1507f2f27e142829da4090e0adbf26ccbcff4ef9d0491b9ff"
+content-hash = "2b1b430a47f535109452ff97bffe189c733372289338daab9c454e8598138699"
 
 [metadata.files]
 astroid = []
@@ -871,8 +781,6 @@ autopep8 = [
     {file = "autopep8-1.6.0-py2.py3-none-any.whl", hash = "sha256:ed77137193bbac52d029a52c59bec1b0629b5a186c495f1eb21b126ac466083f"},
     {file = "autopep8-1.6.0.tar.gz", hash = "sha256:44f0932855039d2c15c4510d6df665e4730f2b8582704fa48f9c55bd3e17d979"},
 ]
-boto3 = []
-botocore = []
 cachetools = []
 certifi = [
     {file = "certifi-2022.6.15-py3-none-any.whl", hash = "sha256:fe86415d55e84719d75f8b69414f6438ac3547d2078ab91b67e779ef69378412"},
@@ -925,7 +833,6 @@ isort = [
     {file = "isort-5.10.1-py3-none-any.whl", hash = "sha256:6f62d78e2f89b4500b080fe3a81690850cd254227f27f75c3a0c491a1f351ba7"},
     {file = "isort-5.10.1.tar.gz", hash = "sha256:e8443a5e7a020e9d7f97f1d7d9cd17c88bcb3bc7e218bf9cf5095fe550be2951"},
 ]
-jmespath = []
 kubernetes = []
 lazy-object-proxy = [
     {file = "lazy-object-proxy-1.7.1.tar.gz", hash = "sha256:d609c75b986def706743cdebe5e47553f4a5a1da9c5ff66d76013ef396b5a8a4"},
@@ -967,9 +874,6 @@ lazy-object-proxy = [
     {file = "lazy_object_proxy-1.7.1-pp37.pp38-none-any.whl", hash = "sha256:d66906d5785da8e0be7360912e99c9188b70f52c422f9fc18223347235691a84"},
 ]
 magnus = []
-magnus-extension-aws-config = []
-magnus-extension-catalog-s3 = []
-magnus-extension-datastore-s3 = []
 mccabe = [
     {file = "mccabe-0.7.0-py2.py3-none-any.whl", hash = "sha256:6c2d30ab6be0e4a46919781807b4f0d834ebdd6c6e3dca0bda5a15f863427b6e"},
     {file = "mccabe-0.7.0.tar.gz", hash = "sha256:348e0240c33b60bbdf4e523192ef919f28cb2c3d7d5c7794f74009290f236325"},
@@ -1163,7 +1067,6 @@ rsa = []
     {file = "ruamel.yaml.clib-0.2.6-cp39-cp39-win_amd64.whl", hash = "sha256:825d5fccef6da42f3c8eccd4281af399f21c02b32d98e113dbc631ea6a6ecbc7"},
     {file = "ruamel.yaml.clib-0.2.6.tar.gz", hash = "sha256:4ff604ce439abb20794f05613c374759ce10e3595d1867764dd1ae675b85acbd"},
 ]
-s3transfer = []
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
