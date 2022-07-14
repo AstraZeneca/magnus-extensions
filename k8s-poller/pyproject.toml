@@ -11,8 +11,9 @@ documentation = "https://astrazeneca.github.io/magnus-extensions/"
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
-magnus = "*"
+magnus = "^0.3.11"
 kubernetes = "*"
+tqdm = "^4.64.0"
 
 
 [tool.poetry.dev-dependencies]
@@ -30,7 +31,11 @@ tox = "^3.24.5"
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
-#[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+"k8s-poller-run_log_store-buffered" = "magnus_extension_k8s_poller.integration:K8sPollerComputeRunLogStoreBuffered"
+"k8s-poller-run_log_store-file-system" = "magnus_extension_k8s_poller.integration:K8sPollerComputeRunLogStoreFileSystem"
+"k8s-poller-catalog-file-system" = "magnus_extension_k8s_poller.integration:K8sPollerComputeCatalogFileSystem"
+"k8s-poller-run_log_store-s3" = "magnus_extension_k8s_poller.integration:K8sPollerComputeRunLogStoreS3"
 
 
 [build-system]
