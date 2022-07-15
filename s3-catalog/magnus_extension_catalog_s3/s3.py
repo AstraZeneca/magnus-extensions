@@ -69,15 +69,18 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         s3_client = self.get_s3()
         self.check_s3_access(s3_client, self.get_bucket_name())
 
-        s3_prefix = f'{run_id}/'
+        s3_prefix = f'{run_id}'
         if self.prefix:
             s3_prefix = f'{self.prefix}/{s3_prefix}'
 
         if not copy_to == '.':
-            s3_prefix = f'{s3_prefix}{copy_to}/'
+            s3_prefix = f'{s3_prefix}/{copy_to}'
 
         page_iter = s3_client.get_paginator('list_objects_v2').paginate(
             Bucket=self.get_bucket_name(), Prefix=s3_prefix)
+
+        for page in page_iter:
+            logger.debug(f'contents from S3: {page}')
 
         search_name = f'{s3_prefix}/{name}'
         if name == '*':
