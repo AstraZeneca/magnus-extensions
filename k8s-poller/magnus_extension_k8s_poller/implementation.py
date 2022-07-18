@@ -152,6 +152,7 @@ class K8sExecutor(BaseExecutor):
         pod_spec = self._client.V1PodSpec(volumes=pod_volume_template,
                                           restart_policy='Never',
                                           containers=[base_container])
+        pod_spec.termination_grace_period_seconds = self.job_ttl
 
         pod_template = self._client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(labels=labels),
