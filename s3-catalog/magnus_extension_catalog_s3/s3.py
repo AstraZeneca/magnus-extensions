@@ -31,25 +31,55 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
       config:
         compute_data_folder : data/
         s3_bucket: Bucket name
-        region: Region if we are using
-        aws_profile: The profile to use or default
         prefix: Any prefix in S3 to search for the catalog files
     """
     service_name = 's3'
 
-    def __init__(self, config, **kwargs):
-        super().__init__(config, **kwargs)
-        if not (self.config and 's3_bucket' in self.config):
-            raise Exception('config with at least s3 bucket name should be provided for catalog type S3')
+    class Config(BaseCatalog.Config, AWSConfigMixin.Config):
+        s3_bucket: str
+        prefix: str = ''
 
     @property
-    def prefix(self):
+    def prefix(self) -> str:
         """
         Return the prefix if present in the config. Or an empty string
         """
-        return self.config.get('prefix', "")
+        return self.config.prefix.strip('/')
 
-    def get(self, name, run_id, compute_data_folder=None, **kwargs):
+    def get_s3(self):
+        """Gets a s3 client object from a boto3 session.
+
+        Returns:
+            botocore.client: s3 client object
+        """
+        boto_session = self.get_boto3_session()
+        return boto_session.client('s3')
+
+    @property
+    def bucket_name(self) -> str:
+        """Gets the bucket name.
+
+        Returns:
+            str: Name of the S3 bucket for the catalog.
+        """
+        return self.config.s3_bucket
+
+    def check_s3_access(self, s3_client, bucket):
+        """Checks access to a given S3 bucket
+
+        Args:
+            s3_client (botocore.client): S3 client
+            bucket (str): Bucket name
+
+        Raises:
+            Exception: If can't access the bucket then an Exception is raised
+        """
+        check_access = s3_client.head_bucket(Bucket=bucket)
+
+        if check_access['ResponseMetadata']['HTTPStatusCode'] != 200:
+            raise Exception(f'Expected Catalog s3 Bucket {bucket} does not exist, or you do not have access')
+
+    def get(self, name: str, run_id: str, compute_data_folder: str = None, **kwargs):
         """Gets files from S3 store and moves to compute data folder
 
         Args:
@@ -64,29 +94,35 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
 
         if compute_data_folder:
             copy_to = compute_data_folder
-        utils.safe_make_dir(copy_to)
+
+        if not utils.does_dir_exist(copy_to):
+            msg = (
+                f'Expected compute data folder to be present at: {copy_to} but not found. \n'
+                'Note: Magnus does not create the compute data folder for you. Please ensure that the folder exists.\n'
+            )
+            raise Exception(msg)
 
         s3_client = self.get_s3()
-        self.check_s3_access(s3_client, self.get_bucket_name())
+        self.check_s3_access(s3_client, self.bucket_name)
 
         s3_prefix = f'{run_id}'
         if self.prefix:
             s3_prefix = f'{self.prefix}/{s3_prefix}'
 
-        if not copy_to == '.':
+        if copy_to != '.':
             s3_prefix = f'{s3_prefix}/{copy_to}'
 
         page_iter = s3_client.get_paginator('list_objects_v2').paginate(
-            Bucket=self.get_bucket_name(), Prefix=s3_prefix)
+            Bucket=self.bucket_name, Prefix=s3_prefix)
 
+        logger.debug('Contents from S3')
         for page in page_iter:
-            logger.debug(f'contents from S3: {page}')
+            logger.debug(page)
 
         search_name = f'{s3_prefix}/{name}'
         if name == '*':
             search_name = '*'
 
-        # TODO windows filename and fnmatch may not play nicely!
         s3_files = []
         for page in page_iter:
             try:
@@ -99,16 +135,15 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         run_log_store = get_run_log_store()
 
         for file in s3_files:
-            file_obj = s3_client.get_object(Bucket=self.get_bucket_name(), Key=file)
+            file_obj = s3_client.get_object(Bucket=self.bucket_name, Key=file)
 
             # Remove run_id and s3 prefix as they are specific to cataloging method
             write_path = Path(file.replace(f'{run_id}/', '').replace(self.prefix, "").lstrip(os.sep))
-
             with write_path.open('wb') as f:
                 f.write(file_obj['Body'].read())
 
-            data_catalog = run_log_store.create_data_catalog(file)
-            data_catalog.catalog_handler_location = self.get_bucket_name()
+            data_catalog = run_log_store.create_data_catalog(str(write_path))
+            data_catalog.catalog_handler_location = f"s3://{self.bucket_name}"
             data_catalog.catalog_relative_path = str(file)
             data_catalog.data_hash = utils.get_data_hash(write_path)
             data_catalog.stage = 'get'
@@ -116,7 +151,7 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
 
         return data_catalogs
 
-    def put(self, name, run_id, compute_data_folder=None, synced_catalogs=None, **kwargs):
+    def put(self, name: str, run_id: str, compute_data_folder: str = None, synced_catalogs=None, **kwargs):
         """Moves the data from the compute data folder to the s3 data catalog
 
         Args:
@@ -140,7 +175,7 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
             raise Exception(f'Expected compute data folder to be present at: {copy_from} but not found')
 
         s3_client = self.get_s3()
-        self.check_s3_access(s3_client, bucket=self.get_bucket_name())
+        self.check_s3_access(s3_client, bucket=self.bucket_name)
 
         glob_files = Path(copy_from).glob(name)
 
@@ -151,10 +186,15 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
             if file.is_dir():
                 # Need not add a data catalog for the folder
                 continue
+            relative_file_path = file.relative_to('.')
 
-            data_catalog = run_log_store.create_data_catalog(str(file.name))
-            data_catalog.catalog_handler_location = self.get_bucket_name()
-            data_catalog.catalog_relative_path = run_id + '/' + str(file.name)
+            file_key = f'{run_id}/{relative_file_path}'
+            if self.prefix:
+                file_key = f'{self.prefix}/{file_key}'
+
+            data_catalog = run_log_store.create_data_catalog(str(relative_file_path))
+            data_catalog.catalog_handler_location = f"s://{self.bucket_name}"
+            data_catalog.catalog_relative_path = file_key
             data_catalog.data_hash = utils.get_data_hash(str(file))
             data_catalog.stage = 'put'
             data_catalogs.append(data_catalog)
@@ -162,49 +202,11 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
             if is_catalog_out_of_sync(data_catalog, synced_catalogs):
                 logger.info(f'{data_catalog.name} was found to be changed, syncing')
 
-                relative_file_path = file.relative_to('.')
-
-                file_key = f'{run_id}/{relative_file_path}'
-                if self.prefix:
-                    file_key = f'{self.prefix}/{file_key}'
-
-                s3_client.upload_file(Filename=str(file.resolve()), Bucket=self.get_bucket_name(),
+                s3_client.upload_file(Filename=str(file.resolve()), Bucket=self.bucket_name,
                                       Key=file_key)
             else:
                 logger.info(f'{data_catalog.name} was found to be unchanged, ignoring syncing')
         return data_catalogs
-
-    def get_s3(self):
-        """Gets a s3 client object from a boto3 session.
-
-        Returns:
-            botocore.client: s3 client object
-        """
-        boto_session = self.get_boto3_session()
-        return boto_session.client('s3')
-
-    def get_bucket_name(self):
-        """Gets the bucket name.
-
-        Returns:
-            str: Name of the S3 bucket for the catalog.
-        """
-        return self.config.get('s3_bucket')
-
-    def check_s3_access(self, s3_client, bucket):
-        """Checks access to a given S3 bucket
-
-        Args:
-            s3_client (botocore.client): S3 client
-            bucket (str): Bucket name
-
-        Raises:
-            Exception: If can't access the bucket then an Exception is raised
-        """
-        check_access = s3_client.head_bucket(Bucket=bucket)
-
-        if check_access['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise Exception(f'Expected Catalog s3 Bucket {bucket} does not exist, or you do not have access')
 
     def sync_between_runs(self, previous_run_id: str, run_id: str):
         """
@@ -216,15 +218,19 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
 
         """
         s3_client = self.get_s3()
-        self.check_s3_access(s3_client, self.get_bucket_name())
+        self.check_s3_access(s3_client, self.bucket_name)
 
         s3_files = []
-        page_iter = s3_client.get_paginator('list_objects_v2').paginate(Bucket=self.get_bucket_name(),
-                                                                        Prefix=previous_run_id)
+        look_at = previous_run_id
+        if self.prefix:
+            look_at = self.prefix + '/' + look_at
+
+        page_iter = s3_client.get_paginator('list_objects_v2').paginate(Bucket=self.bucket_name,
+                                                                        Prefix=look_at)
         for page in page_iter:
             s3_files += [file['Key'] for file in page['Contents']]
 
         for file in s3_files:
-            s3_client.copy_object(Bucket=self.get_bucket_name(),
+            s3_client.copy_object(Bucket=self.bucket_name,
                                   CopySource=file,
                                   Key=file.replace(previous_run_id, run_id))

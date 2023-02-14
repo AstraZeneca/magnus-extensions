@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magnus_extension_catalog_s3"
-version = "0.1.2"
+version = "0.2.0"
 description = "Magnus extension to provide S3 Catalog functionality"
 authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>"]
 license = "Apache-2.0"
@@ -10,9 +10,10 @@ repository = "https://github.com/AstraZeneca/magnus-extensions/"
 documentation = "https://astrazeneca.github.io/magnus-extensions/"
 
 [tool.poetry.dependencies]
-python = "^3.7.1"
-magnus = "*"
-magnus_extension_aws_config = "^0.1.1"
+python = "^3.8"
+magnus = "^0.4.1"
+magnus_extension_aws_config = "^0.2.0"
+pydantic = "^1.10.4"
 
 
 [tool.poetry.dev-dependencies]
@@ -32,7 +33,6 @@ tox = "^3.24.5"
 # naming convention: {executor.name}-{service}-{service.name}
 [tool.poetry.plugins."magnus.integration.BaseIntegration"]
 "local-container-catalog-s3" = "magnus_extension_catalog_s3.integration:LocalContainerComputeS3Catalog"
-
 
 
 [build-system]

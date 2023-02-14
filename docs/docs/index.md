@@ -20,6 +20,7 @@ Below is the table of all the available extensions to the above services:
 | **Catalog**     |                                      |                  |
 | Do Nothing  | Provides no cataloging functionality |   Part of Magnus core |
 | File System  | Uses local file system (default) |   Part of Magnus core |
+| S3 | Uses S3 as a catalog | magnus_extension_catalog_s3 |
 | **Secrets**     |                                      |                  |
 | Do Nothing  | Provides no secrets handler (default) |   Part of Magnus core |
 | Dot Env  | Uses a file as secrets  |   Part of Magnus core |
