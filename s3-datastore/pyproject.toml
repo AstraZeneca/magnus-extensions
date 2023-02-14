@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magnus_extension_datastore_s3"
-version = "0.1.2"
+version = "0.2.0"
 description = "Magnus extension for S3 as run log store"
 authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>"]
 license = "Apache-2.0"
@@ -10,9 +10,9 @@ repository = "https://github.com/AstraZeneca/magnus-extensions/"
 documentation = "https://astrazeneca.github.io/magnus-extensions/"
 
 [tool.poetry.dependencies]
-python = "^3.7.1"
-magnus = "^0.3.11"
-magnus_extension_aws_config = "^0.1.1"
+python = "^3.8"
+magnus = "^0.4.1"
+magnus_extension_aws_config = "^0.2"
 
 
 [tool.poetry.dev-dependencies]

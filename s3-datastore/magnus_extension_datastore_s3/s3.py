@@ -29,17 +29,14 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
       type: s3
       config:
         s3_bucket: The S3 bucket to use
-        region: The aws region to use
-        aws_profile: The aws profile to use
         prefix: Any bucket prefix that you want to attach
 
     """
     service_name = 's3'
 
-    def __init__(self, config):
-        super().__init__(config)
-        if 's3_bucket' not in self.config:
-            raise Exception('S3 bucket name should be provided when using store type of S3')
+    class Config(AWSConfigMixin.Config):
+        s3_bucket: str
+        prefix: str = ''
 
     @property
     def s3_bucket(self) -> str:
@@ -49,14 +46,14 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
         Returns:
             str: The name of the s3 bucket as per the config
         """
-        return self.config['s3_bucket']
+        return self.config.s3_bucket
 
     @property
     def prefix(self):
         """
         Return the prefix if present in the config. Or an empty string
         """
-        return self.config.get('prefix', "")
+        return self.config.prefix.strip('/')
 
     def write_to_bucket(self, run_log: RunLog):
         """Writes the run log to S3 bucket
@@ -126,11 +123,19 @@ class S3Store(BaseRunLogStore, AWSConfigMixin):
         finally:
             temp_file.close()
 
-    def create_run_log(self, run_id, **kwargs):
+    def create_run_log(self, run_id: str, dag_hash: str = '', use_cached: bool = False,
+                       tag: str = '', original_run_id: str = '', status: str = defaults.CREATED, **kwargs) -> RunLog:
         # Creates a Run log
         # Adds it to the db
+        try:
+            self.get_run_log_by_id(run_id=run_id, full=False)
+            raise exceptions.RunLogExistsError(run_id=run_id)
+        except exceptions.RunLogNotFoundError:
+            pass
+
         logger.info(f'{self.service_name} Creating a Run Log for : {run_id}')
-        run_log = RunLog(run_id=run_id, status=defaults.CREATED)
+        run_log = RunLog(run_id=run_id, dag_hash=dag_hash, use_cached=use_cached,
+                         tag=tag, original_run_id=original_run_id, status=status)
         self.write_to_bucket(run_log)
         return run_log
 

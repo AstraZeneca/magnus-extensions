@@ -30,5 +30,6 @@ Below is the table of all the available extensions to the above services:
 | **Logging**     |                                      |                  |
 |   Buffered  | Uses the run time buffer as logger (default) |   Part of Magnus core |
 | File System  | Uses a file system as run log store  |   Part of Magnus core |
+| S3 | Uses S3 to store logs | magnus_extension_datastore_s3 |
 | **Experiment Tracking**     |                                      |                  |
 |   Do Nothing  | Provides no experiment tracking (default) |   Part of Magnus core |
