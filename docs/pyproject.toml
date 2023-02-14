@@ -2,7 +2,7 @@
 name = "magnus_extensions_docs"
 version = "0.1.1"
 description = "Documentation for magnus extensions"
-authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>", "Vijay Vammi <mesanthu@gmail.com>"]
+authors = [ "Vijay Vammi <mesanthu@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://github.com/AstraZeneca/magnus-extensions"

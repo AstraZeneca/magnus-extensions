@@ -5,6 +5,7 @@ import os
 from functools import partial
 
 import boto3
+from pydantic import BaseModel, Extra
 
 from magnus import defaults
 
@@ -19,18 +20,29 @@ class AWSConfigMixin:
     """
     A Mixin to provide common utilities for AWS services
     """
+    class Config(BaseModel, extra=Extra.allow):
+        aws_profile: str = ''
+        use_credentials: bool = False
+        region: str = defaults.AWS_REGION
+        aws_credentials_file: str = str(Path.home() / '.aws' / 'credentials')
+        aws_access_key_name: str = 'AWS_ACCESS_KEY_ID'
+        aws_secret_access_key_name: str = 'AWS_SECRET_ACCESS_KEY'
+        aws_session_key_name: str = 'AWS_SESSION_TOKEN'
+        role_arn: str = ''
+        session_duration_in_seconds: int = 900
 
-    def __init__(self, config):
-        self.config = config or {}
+    def __init__(self, config=None):
+        config = config or {}
+        self.config = self.Config(**config)
 
-    def get_aws_profile(self) -> Union[str, None]:
+    def get_aws_profile(self) -> str:
         """
         Return the aws profile as set by the config or None if config is empty
 
         Returns:
-            str: The AWS profile name or None
+            str: The AWS profile name or ''
         """
-        return self.config.get('aws_profile', None)
+        return self.config.aws_profile
 
     def remove_aws_profile(self):
         """
@@ -38,13 +50,13 @@ class AWSConfigMixin:
 
         This is useful in cases where we are doing role based auth instead of profile based.
         """
-        self.config['aws_profile'] = None
+        self.config.aws_profile = ''
 
     def set_to_use_credentials(self):
         """
         Sets the use_credentials flag in the config to True
         """
-        self.config['use_credentials'] = True
+        self.config.use_credentials = True
 
     def get_region_name(self) -> str:
         """
@@ -53,7 +65,7 @@ class AWSConfigMixin:
         Returns:
             str: The region name as per the config or eu-west-1
         """
-        return self.config.get('region', defaults.AWS_REGION)
+        return self.config.region
 
     def get_aws_credentials_file(self) -> str:
         """
@@ -62,10 +74,7 @@ class AWSConfigMixin:
         Returns:
             str: The location of the credentials file
         """
-        if 'aws_credentials_file' in self.config:
-            return self.config['aws_credentials_file']
-
-        return str(Path.home() / '.aws' / 'credentials')
+        return self.config.aws_credentials_file
 
     def get_aws_credentials_from_env(self) -> dict:
         """
@@ -77,9 +86,9 @@ class AWSConfigMixin:
 
         aws_credentials = {}
         try:
-            aws_credentials['AWS_ACCESS_KEY_ID'] = os.environ['AWS_ACCESS_KEY_ID']
-            aws_credentials['AWS_SECRET_ACCESS_KEY'] = os.environ['AWS_SECRET_ACCESS_KEY']
-            aws_credentials['AWS_SESSION_TOKEN'] = os.environ.get('AWS_SESSION_TOKEN', None)
+            aws_credentials['AWS_ACCESS_KEY_ID'] = os.environ[self.config.aws_access_key_name]
+            aws_credentials['AWS_SECRET_ACCESS_KEY'] = os.environ[self.config.aws_secret_access_key_name]
+            aws_credentials['AWS_SESSION_TOKEN'] = os.environ.get(self.config.aws_session_key_name, None)
         except KeyError as _e:
             msg = (
                 "Expected AWS credentials as part of the environment. Please set AWS_ACCESS_KEY_ID,"
@@ -103,7 +112,7 @@ class AWSConfigMixin:
         region = self.get_region_name()
 
         # If we are not using credentials from environment variables, return the session
-        if not self.config.get('use_credentials', False):
+        if not self.config.use_credentials:
             return boto3.session.Session(profile_name=profile, region_name=region)
 
         # If we are using creds from environment, there are 2 possible scenarios
@@ -116,7 +125,7 @@ class AWSConfigMixin:
                                aws_secret_access_key=aws_creds['AWS_SECRET_ACCESS_KEY'],
                                region_name=region)
 
-        if 'role_arn' not in self.config:
+        if not self.config.role_arn:
             logger.info("No Role ARN present in config, assuming a simple session with no STS")
             return partial_sess()  # Enough information to call the partial
 
@@ -124,9 +133,9 @@ class AWSConfigMixin:
 
         sts_connection = sess.client('sts')
         assume_role_object = sts_connection.assume_role(
-            RoleArn=self.config['role_arn'],
+            RoleArn=self.config.role_arn,
             RoleSessionName='temp-session',
-            DurationSeconds=900)
+            DurationSeconds=self.config.session_duration_in_seconds)
         credentials = assume_role_object['Credentials']
 
         tmp_access_key = credentials['AccessKeyId']

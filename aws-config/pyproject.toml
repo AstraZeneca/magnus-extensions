@@ -10,9 +10,10 @@ repository = "https://github.com/AstraZeneca/magnus-extension"
 documentation = "https://astrazeneca.github.io/magnus-extension/"
 
 [tool.poetry.dependencies]
-python = "^3.7.1"
-magnus = "*"
+python = "^3.8"
+magnus = "^0.4.1"
 boto3 = "*"
+pydantic = "^1.10.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
