@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "magnus_extension_k8s_poller"
+name = "magnus_extension_kubeflow"
 version = "0.1.0"
-description = "Description you want to give"
-authors = ["Vijay Vammi <vijay.vammi@astrazeneca.com>", "Vignesh Ramakrishnan <vignesh.ramakrishnan3@astrazeneca.com>"]
+description = "Kubeflow executor"
+authors = ["Vijay Vammi <mesanthu@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://github.com/AstraZeneca/magnus-extensions/"
@@ -10,10 +10,9 @@ repository = "https://github.com/AstraZeneca/magnus-extensions/"
 documentation = "https://astrazeneca.github.io/magnus-extensions/"
 
 [tool.poetry.dependencies]
-python = "^3.7.1"
-magnus = "^0.3.11"
-kubernetes = "*"
-tqdm = "^4.64.0"
+python = "^3.8"
+magnus = "^0.4.1"
+kfp = "^1.8.18"
 
 
 [tool.poetry.dev-dependencies]
@@ -27,15 +26,15 @@ tox = "^3.24.5"
 
 # Use this section to provide the namespace to extend and implementation
 [tool.poetry.plugins."magnus.executor.BaseExecutor"]
-"k8s-poller" = "magnus_extension_k8s_poller.implementation:K8sExecutor"
+"kfp" = "magnus_extension_kubeflow.implementation:KubeFlowExecutor"
+
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
 [tool.poetry.plugins."magnus.integration.BaseIntegration"]
-"k8s-poller-run_log_store-buffered" = "magnus_extension_k8s_poller.integration:K8sPollerComputeRunLogStoreBuffered"
-"k8s-poller-run_log_store-file-system" = "magnus_extension_k8s_poller.integration:K8sPollerComputeRunLogStoreFileSystem"
-"k8s-poller-catalog-file-system" = "magnus_extension_k8s_poller.integration:K8sPollerComputeCatalogFileSystem"
-"k8s-poller-run_log_store-s3" = "magnus_extension_k8s_poller.integration:K8sPollerComputeRunLogStoreS3"
+"kfp-run_log_store-buffered" = "magnus_extension_kubeflow.integration:KfPComputeBufferedRunLogStore"
+"kfp-run_log_store-file_system" = "magnus_extension_kubeflow.integration:KfPComputeFileSystemRunLogStore"
+"kfp-catalog-file_system" = "magnus_extension_kubeflow.integration:KfPComputeFileSystemCatalog"
 
 
 [build-system]
