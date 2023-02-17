@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "magnus-extensions"
+version = "0.1.0"
+description = "Extensions to Magnus core"
+authors = ["Vijay Vammi <mesanthu@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+packages = [{include = "magnus_extensions"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+magnus = "^0.4.1"
+boto3 ={ version = "*", optional = true }
+
+[tool.poetry.extras]
+aws = ["boto3"]
+
+[tool.poetry.dev-dependencies]
+autopep8 = "*"
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+mkdocs = "*"
+mkdocs-material = "*"
+mypy = "^0.931"
+tox = "^3.24.5"
+pre-commit = "*"
+commit-linter = "^1.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
