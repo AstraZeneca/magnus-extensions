@@ -1,0 +1,72 @@
+[tool.poetry]
+name = "magnus_extensions"
+version = "0.1.0"
+description = "Extensions to Magnus core"
+authors = ["Vijay Vammi <mesanthu@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+packages = [{include = "magnus_extensions"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+magnus = "^0.4.1"
+boto3 ={ version = "*", optional = true }
+kfp = {version= "^1.8.18", optional = true }
+sqlalchemy = { version = "*", optional = true }
+
+[tool.poetry.extras]
+aws = ["boto3"]
+kubeflow = ["kfp"]
+database = ["sqlalchemy"]
+
+[tool.poetry.dev-dependencies]
+autopep8 = "*"
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+mkdocs = "*"
+mkdocs-material = "*"
+mypy = "^0.931"
+tox = "^3.24.5"
+pre-commit = "*"
+commit-linter = "^1.0.2"
+
+# Use this section to provide the namespace to extend and implementation
+[tool.poetry.plugins."magnus.catalog.BaseCatalog"]
+"s3" = "magnus_extensions.catalog.s3.implementation:S3Catalog"
+
+[tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
+"s3" = "magnus_extensions.datastore.s3.implementation:S3Store"
+
+[tool.poetry.plugins."magnus.secrets.BaseSecrets"]
+"aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
+
+[tool.poetry.plugins."magnus.executor.BaseExecutor"]
+"kfp" = "magnus_extensions.executor.kfp.implementation:KubeFlowExecutor"
+"argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
+
+# Use this provide namespace of the integration
+# naming convention: {executor.name}-{service}-{service.name}
+[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+#S3 catalog
+"local-container-catalog-s3" = "magnus_extensions.catalog.s3.integration:LocalContainerComputeS3Catalog"
+# S3 run log store
+"local-container-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalContainerComputeS3Store"
+"local-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalComputeS3RunLogStore"
+# AWS secrets manager
+"local-container-secrets-aws-secrets-manager" = "magnus_extensions.secrets.aws.integration:LocalContainerComputeAWSSecrets"
+#KFP executor
+"kfp-run_log_store-buffered" = "magnus_extensions.executor.kfp.integration:KfPComputeBufferedRunLogStore"
+"kfp-run_log_store-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemRunLogStore"
+"kfp-catalog-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemCatalog"
+#Argo executor
+"argo-run_log_store-buffered" = "magnus_extensions.executor.argo.integration:ArgoComputeBufferedRunLogStore"
+"argo-run_log_store-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemRunLogStore"
+"argo-catalog-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemCatalog"
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

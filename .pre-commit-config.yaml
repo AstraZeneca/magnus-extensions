@@ -1,0 +1,22 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+# using a non-local repo creates a venv for the pre-commit
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        exclude: docs/assets
+  # sorts imports by alphabetically and into base>packages>local
+  - repo: https://github.com/PyCQA/isort
+    rev: "5.7.0"
+    hooks:
+      - id: isort
+  - repo: https://github.com/pre-commit/mirrors-autopep8
+    rev: "v1.6.0" # Use the sha / tag you want to point at
+    hooks:
+      - id: autopep8
+        args: ["--max-line-length=120", "--in-place", "--recursive"]

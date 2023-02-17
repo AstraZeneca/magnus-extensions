@@ -1,7 +1,5 @@
 # Welcome to Magnus Extensions
 
-Documentation of the extensions are available at: https://astrazeneca.github.io/magnus-extensions/
-
 This repository provides all the extensions to [magnus core package](https://github.com/AstraZeneca/magnus-core).
 
 Magnus provides 5 essential services:
@@ -16,7 +14,7 @@ Below is the table of all the available extensions to the above services:
 
 | Service     | Description                          |   Availability   |
 | :---------: | :----------------------------------: |  :-------------: |
-| **Executors**   |                                      |                  |   
+| **Executors**   |                                      |                  |
 | Local       | Run the pipeline on local machine (default) |   Part of Magnus core |
 | Local Containers    | Run the pipeline on local containers | Part of Magnus core |
 | **Catalog**     |                                      |                  |

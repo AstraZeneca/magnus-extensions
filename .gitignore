@@ -142,11 +142,4 @@ cython_debug/
 # VSCode specific settings
 .vscode
 
-# Pants workspace files
-/.pants.d/
-/dist/
-/.pids
-/.pants.workdir.file_lock*
-k8s-poller/.python-version
-k8s-poller/git_tracked.tar.gz
-/k8s-poller/.catalog/
+# Work space settings
