@@ -1,21 +1,19 @@
-import logging
 import json
+import logging
 import tempfile
 
 import botocore
-
+from magnus import defaults, exceptions
 from magnus.datastore import BaseRunLogStore, RunLog
-from magnus import defaults
-from magnus import exceptions
 
 logger = logging.getLogger(defaults.NAME)
 
 
 try:
-    from magnus_extension_aws_config.aws import AWSConfigMixin
+    from magnus_extensions.aws import AWSConfigMixin
 except ImportError as _e:  # pragma: no cover
     msg = (
-        'Please install magnus_extension_aws_config which provides the general utilities for AWS services.'
+        "AWS Dependencies are not installed!!"
     )
     raise Exception(msg) from _e
 

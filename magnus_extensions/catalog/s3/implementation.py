@@ -1,20 +1,19 @@
-import logging
-from pathlib import Path
-import os
 import fnmatch
+import logging
+import os
+from pathlib import Path
 
-from magnus.catalog import BaseCatalog
-from magnus import utils
-from magnus import defaults
-from magnus.catalog import get_run_log_store, is_catalog_out_of_sync
+from magnus import defaults, utils
+from magnus.catalog import (BaseCatalog, get_run_log_store,
+                            is_catalog_out_of_sync)
 
 logger = logging.getLogger(defaults.NAME)
 
 try:
-    from magnus_extension_aws_config.aws import AWSConfigMixin
+    from magnus_extensions.aws import AWSConfigMixin
 except ImportError as _e:  # pragma: no cover
     msg = (
-        'Please install magnus_extension_aws_config which provides the general utilities for AWS services.'
+        "AWS Dependencies are not installed!!"
     )
     raise Exception(msg) from _e
 

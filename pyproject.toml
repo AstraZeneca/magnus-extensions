@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "magnus-extensions"
+name = "magnus_extensions"
 version = "0.1.0"
 description = "Extensions to Magnus core"
 authors = ["Vijay Vammi <mesanthu@gmail.com>"]
@@ -27,6 +27,20 @@ mypy = "^0.931"
 tox = "^3.24.5"
 pre-commit = "*"
 commit-linter = "^1.0.2"
+
+# Use this section to provide the namespace to extend and implementation
+[tool.poetry.plugins."magnus.catalog.BaseCatalog"]
+"s3" = "magnus_extensions.catalog.s3.implementation:S3Catalog"
+
+[tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
+"s3" = "magnus_extensions.datastore.s3.implementation:S3Store"
+
+# Use this provide namespace of the integration
+# naming convention: {executor.name}-{service}-{service.name}
+[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+"local-container-catalog-s3" = "magnus_extensions.catalog.s3.integration:LocalContainerComputeS3Catalog"
+"local-container-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalContainerComputeS3Store"
+"local-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalComputeS3RunLogStore"
 
 
 [build-system]

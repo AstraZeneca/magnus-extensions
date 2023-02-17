@@ -1,8 +1,8 @@
 import logging
 from pathlib import Path
 
-from magnus.integration import BaseIntegration
 from magnus import defaults
+from magnus.integration import BaseIntegration
 
 logger = logging.getLogger(defaults.NAME)
 
