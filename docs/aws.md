@@ -2,7 +2,7 @@
 
 This package provides the general AWS configuration methods used by services based on AWS.
 
-This package is not meant to be used by its own but designed to be used as a dependency for actual AWS 
+This package is not meant to be used by its own but designed to be used as a dependency for actual AWS
 service providers.
 
 ## Installation instructions
@@ -27,7 +27,7 @@ If you are using environmental variables for AWS credentials, please set:
 
 ### **aws_profile**:
 
-The profile to use for acquiring boto3 sessions. 
+The profile to use for acquiring boto3 sessions.
 
 Defaults to None, which is used if its role based access or in case of credentials present as environmental variables.
 

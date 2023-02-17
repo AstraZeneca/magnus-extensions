@@ -2,7 +2,7 @@
 
 This package is an extension to [magnus](https://github.com/AstraZeneca/magnus-core).
 
-## Provides 
+## Provides
 Provides capability to have a database as a run log store.
 
 This run log store is concurrent safe.
@@ -59,10 +59,10 @@ run_log:
 
 Please provide the connection string of the database using this variable.
 
-You can use placeholders for sensitive details and provide it by the secrets manager. Internally, we use 
-[python template strings](https://docs.python.org/3/library/string.html#template-strings) 
-to create a template and 
-[safe substitute](https://docs.python.org/3/library/string.html#string.Template.safe_substitute) with secrets 
+You can use placeholders for sensitive details and provide it by the secrets manager. Internally, we use
+[python template strings](https://docs.python.org/3/library/string.html#template-strings)
+to create a template and
+[safe substitute](https://docs.python.org/3/library/string.html#string.Template.safe_substitute) with secrets
 key value pairs.
 
 For example, a connection string ```'postgresql://scott:${password}@localhost:5432/mydatabase'``` and secrets having

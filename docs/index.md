@@ -14,7 +14,7 @@ Below is the table of all the available extensions to the above services:
 
 | Service     | Description                          |   Availability   |
 | :---------: | :----------------------------------: |  :-------------: |
-| **Executors**   |                                      |                  |   
+| **Executors**   |                                      |                  |
 | Local       | Run the pipeline on local machine (default) |   Part of Magnus core |
 | Local Containers    | Run the pipeline on local containers | Part of Magnus core |
 | **Catalog**     |                                      |                  |
