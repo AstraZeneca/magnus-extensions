@@ -43,7 +43,7 @@ commit-linter = "^1.0.2"
 "aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
 
 [tool.poetry.plugins."magnus.executor.BaseExecutor"]
-"kfp" = "magnus_extensions.executor.kfp.implementation:KubeFlowExecutor"
+"kfp" = "magnus_extensions.executor.kubeflow.implementation:KubeFlowExecutor"
 "argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
 
 # Use this provide namespace of the integration
@@ -57,9 +57,9 @@ commit-linter = "^1.0.2"
 # AWS secrets manager
 "local-container-secrets-aws-secrets-manager" = "magnus_extensions.secrets.aws.integration:LocalContainerComputeAWSSecrets"
 #KFP executor
-"kfp-run_log_store-buffered" = "magnus_extensions.executor.kfp.integration:KfPComputeBufferedRunLogStore"
-"kfp-run_log_store-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemRunLogStore"
-"kfp-catalog-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemCatalog"
+"kfp-run_log_store-buffered" = "magnus_extensions.executor.kubeflow.integration:KfPComputeBufferedRunLogStore"
+"kfp-run_log_store-file_system" = "magnus_extensions.executor.kubeflow.integration:KfPComputeFileSystemRunLogStore"
+"kfp-catalog-file_system" = "magnus_extensions.executor.kubeflow.integration:KfPComputeFileSystemCatalog"
 #Argo executor
 "argo-run_log_store-buffered" = "magnus_extensions.executor.argo.integration:ArgoComputeBufferedRunLogStore"
 "argo-run_log_store-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemRunLogStore"
