@@ -42,6 +42,7 @@ commit-linter = "^1.0.2"
 
 [tool.poetry.plugins."magnus.executor.BaseExecutor"]
 "kfp" = "magnus_extensions.executor.kfp.implementation:KubeFlowExecutor"
+"argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
@@ -57,6 +58,10 @@ commit-linter = "^1.0.2"
 "kfp-run_log_store-buffered" = "magnus_extensions.executor.kfp.integration:KfPComputeBufferedRunLogStore"
 "kfp-run_log_store-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemRunLogStore"
 "kfp-catalog-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemCatalog"
+#Argo executor
+"argo-run_log_store-buffered" = "magnus_extensions.executor.argo.integration:ArgoComputeBufferedRunLogStore"
+"argo-run_log_store-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemRunLogStore"
+"argo-catalog-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemCatalog"
 
 
 
