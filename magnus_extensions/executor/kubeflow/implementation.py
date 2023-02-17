@@ -1,18 +1,23 @@
 import logging
 import shlex
 
-from kfp import dsl
-from kfp.compiler.compiler import Compiler
-from kubernetes.client import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
-
-from magnus import defaults
-from magnus import integration
+from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
 from magnus.graph import Graph
 from magnus.nodes import BaseNode
-from magnus import utils
 
 logger = logging.getLogger(defaults.NAME)
+
+try:
+    from kfp import dsl
+    from kfp.compiler.compiler import Compiler
+    from kubernetes.client import V1EnvVar, V1EnvVarSource, V1SecretKeySelector
+except ImportError as _e:
+    msg = (
+        "Kubeflow Dependencies have not been installed!!"
+    )
+    raise Exception(msg) from _e
+
 
 _EXECUTOR = None
 _GRAPH = None

@@ -11,9 +11,11 @@ packages = [{include = "magnus_extensions"}]
 python = "^3.8"
 magnus = "^0.4.1"
 boto3 ={ version = "*", optional = true }
+kfp = {version= "^1.8.18", optional = true }
 
 [tool.poetry.extras]
 aws = ["boto3"]
+kubeflow = ["kfp"]
 
 [tool.poetry.dev-dependencies]
 autopep8 = "*"
@@ -38,6 +40,8 @@ commit-linter = "^1.0.2"
 [tool.poetry.plugins."magnus.secrets.BaseSecrets"]
 "aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
 
+[tool.poetry.plugins."magnus.executor.BaseExecutor"]
+"kfp" = "magnus_extensions.executor.kfp.implementation:KubeFlowExecutor"
 
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
@@ -49,6 +53,11 @@ commit-linter = "^1.0.2"
 "local-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalComputeS3RunLogStore"
 # AWS secrets manager
 "local-container-secrets-aws-secrets-manager" = "magnus_extensions.secrets.aws.integration:LocalContainerComputeAWSSecrets"
+#KFP executor
+"kfp-run_log_store-buffered" = "magnus_extensions.executor.kfp.integration:KfPComputeBufferedRunLogStore"
+"kfp-run_log_store-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemRunLogStore"
+"kfp-catalog-file_system" = "magnus_extensions.executor.kfp.integration:KfPComputeFileSystemCatalog"
+
 
 
 [build-system]
