@@ -12,10 +12,12 @@ python = "^3.8"
 magnus = "^0.4.1"
 boto3 ={ version = "*", optional = true }
 kfp = {version= "^1.8.18", optional = true }
+sqlalchemy = { version = "*", optional = true }
 
 [tool.poetry.extras]
 aws = ["boto3"]
 kubeflow = ["kfp"]
+database = ["sqlalchemy"]
 
 [tool.poetry.dev-dependencies]
 autopep8 = "*"

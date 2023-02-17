@@ -1,13 +1,11 @@
-import logging
-import json
-from string import Template as str_template
 import datetime
+import json
+import logging
 from collections import OrderedDict
+from string import Template as str_template
 
-
-from magnus.datastore import BaseRunLogStore, RunLog, StepLog, BranchLog
-from magnus import defaults
-from magnus import exceptions
+from magnus import defaults, exceptions
+from magnus.datastore import BaseRunLogStore, BranchLog, RunLog, StepLog
 
 logger = logging.getLogger(defaults.NAME)
 logger.info('Loading DB datastore extension')
@@ -15,9 +13,8 @@ logger.info('Loading DB datastore extension')
 
 try:
     import sqlalchemy
-    from sqlalchemy.orm import sessionmaker
-    from sqlalchemy.orm import declarative_base
-    from sqlalchemy import Column, Text, DateTime, Sequence, Integer
+    from sqlalchemy import Column, DateTime, Integer, Sequence, Text
+    from sqlalchemy.orm import declarative_base, sessionmaker
 
     Base = declarative_base()
 
@@ -108,7 +105,8 @@ class DBStore(BaseRunLogStore):
         Creates a DB engine and session object once per execution. Singleton pattern
         """
         if not self.engine:
-            from magnus.pipeline import global_executor  # pylint: disable=C0415
+            from magnus.pipeline import \
+                global_executor  # pylint: disable=C0415
 
             secrets = global_executor.secrets_handler.get()  # Returns all secrets as dictionary
             connection_string = str_template(self.connection_string).safe_substitute(**secrets)
