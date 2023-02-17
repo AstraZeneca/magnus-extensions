@@ -1,19 +1,17 @@
+import json
 import logging
 from functools import lru_cache
-import json
 
-from magnus import defaults
+from magnus import defaults, exceptions
 from magnus.secrets import BaseSecrets
-from magnus import exceptions
-
 
 logger = logging.getLogger(defaults.NAME)
 
 try:
-    from magnus_extension_aws_config.aws import AWSConfigMixin
+    from magnus_extensions.aws import AWSConfigMixin
 except ImportError as _e:  # pragma: no cover
     msg = (
-        'Please install magnus_extension_aws_config which provides the general utilities for AWS services.'
+        "AWS Dependencies are not installed!!"
     )
     raise Exception(msg) from _e
 
@@ -33,30 +31,32 @@ class AWSSecretsManager(BaseSecrets, AWSConfigMixin):
     """
     service_name = 'aws-secrets-manager'
 
-    def __init__(self, config, **kwargs):
+    class Config(AWSConfigMixin.Config):
+        secret_arn: str
+        secret_version_id: str = ""
+
+    def __init__(self, config: dict, **kwargs):
         super().__init__(config, **kwargs)
-        if not self.config:
-            raise Exception('A config containing the secret_arn should be present for AWS secrets manager')
-        if 'secret_arn' not in self.config:
-            raise Exception('The Secret ARN should be specified in secret_arn for AWS secrets Manager')
         self.secrets = {}
 
-    def get_secret_arn(self) -> str:
+    @property
+    def secret_arn(self) -> str:
         """Returns the secret arn stored in the config
 
         Returns:
             str: The arn of the secret
         """
-        return self.config.get('secret_arn')
+        return self.config.secret_arn
 
-    def get_version_id(self) -> str:
+    @property
+    def secret_version(self) -> str:
         """
         Returns the version ID if provided in the config
 
         Returns:
             str: The version ID as specified in the config or None
         """
-        return self.config.get('secret_version_id', None)
+        return self.config.secret_version_id
 
     @lru_cache(maxsize=2)
     def load_secrets(self):
@@ -66,10 +66,10 @@ class AWSSecretsManager(BaseSecrets, AWSConfigMixin):
         boto_session = self.get_boto3_session()
 
         client = boto_session.client('secretsmanager')
-        if self.get_version_id():
-            response = client.get_secret_value(SecretId=self.get_secret_arn(), VersionId=self.get_version_id())
+        if self.secret_version:
+            response = client.get_secret_value(SecretId=self.secret_arn, VersionId=self.secret_version)
         else:
-            response = client.get_secret_value(SecretId=self.get_secret_arn())
+            response = client.get_secret_value(SecretId=self.secret_arn)
         self.secrets = json.loads(response['SecretString'])
 
     def get(self, name: str = None, **kwargs):

@@ -35,12 +35,20 @@ commit-linter = "^1.0.2"
 [tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
 "s3" = "magnus_extensions.datastore.s3.implementation:S3Store"
 
+[tool.poetry.plugins."magnus.secrets.BaseSecrets"]
+"aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
+
+
 # Use this provide namespace of the integration
 # naming convention: {executor.name}-{service}-{service.name}
 [tool.poetry.plugins."magnus.integration.BaseIntegration"]
+#S3 catalog
 "local-container-catalog-s3" = "magnus_extensions.catalog.s3.integration:LocalContainerComputeS3Catalog"
+# S3 run log store
 "local-container-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalContainerComputeS3Store"
 "local-run_log_store-s3" = "magnus_extensions.datastore.s3.integration:LocalComputeS3RunLogStore"
+# AWS secrets manager
+"local-container-secrets-aws-secrets-manager" = "magnus_extensions.secrets.aws.integration:LocalContainerComputeAWSSecrets"
 
 
 [build-system]
