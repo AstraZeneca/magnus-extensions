@@ -1,6 +1,6 @@
 import logging
 import shlex
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
@@ -29,6 +29,11 @@ class SecretEnvVar(BaseModel):
         }
 
 
+class EnvVar(BaseModel):
+    name: str
+    value: Any
+
+
 class Resource(BaseModel):
     memory: str
     cpu: str
@@ -41,7 +46,7 @@ class Container(BaseModel):
     requests: Resource
     imagePullPolicy: str = "IfNotPresent"
     retry: int = 1
-    env: List[SecretEnvVar] = []
+    env: List[Union[SecretEnvVar, EnvVar]] = []
 
     def dict(self, *args, **kwargs) -> dict:
         return {
@@ -85,7 +90,17 @@ class Spec(BaseModel):
     entrypoint: str = "magnus-dag"
     templates: Union[DagTemplate, ContainerTemplate] = []
     serviceAccountName: str = "pipeline-runner"
-    arguments: dict = {"parameters": []}
+    arguments: List[EnvVar] = []
+
+    def dict(self, *args, **kwargs):
+        return {
+            "entrypoint": self.entrypoint,
+            "templates": [template.dict() for template in self.templates],
+            "serviceAccountName": self.serviceAccountName,
+            "arguments": {
+                "parameters": [env.dict() for env in self.arguments]
+            }
+        }
 
 
 class WorkSpec(BaseModel):
@@ -98,6 +113,7 @@ class WorkSpec(BaseModel):
 class ArgoExecutor(BaseExecutor):
 
     service_name = "argo"
+    run_id_placeholder = "{{workflow.parameters.run_id}}"
 
     class Config(BaseExecutor.Config):
         docker_image: str
@@ -167,21 +183,29 @@ class ArgoExecutor(BaseExecutor):
 
         # Implicit fail
         _, next_node_name = self._get_status_and_next_node_name(node, self.dag, map_variable=map_variable)
-        next_node = self.dag.get_node_by_name(next_node_name)
+        if next_node_name:
+            # Terminal nodes do not have next node name
+            next_node = self.dag.get_node_by_name(next_node_name)
 
-        if next_node.node_type == defaults.FAIL:
-            self.execute_node(next_node, map_variable=map_variable)
+            if next_node.node_type == defaults.FAIL:
+                self.execute_node(next_node, map_variable=map_variable)
 
         step_log = self.run_log_store.get_step_log(node._get_step_log_name(map_variable), self.run_id)
         if step_log.status == defaults.FAIL:
             raise Exception(f'Step {node.name} failed')
+
+    def get_parameters(self):
+        parameters = utils.get_user_set_parameters()
+        if self.parameters_file:
+            parameters.update(utils.load_yaml(self.parameters_file))
+        return parameters
 
     def get_clean_name(self, node_name: str):
         return node_name.replace(" ", "-")
 
     def create_container_template(self, working_on: BaseNode):
         command = shlex.split(utils.get_node_execution_command(self, working_on,
-                                                               over_write_run_id='{{workflow.uid}}'))
+                                                               over_write_run_id=self.run_id_placeholder))
         mode_config = self._resolve_node_config(working_on)
         secrets = mode_config.get("secrets_from_k8s", {})
 
@@ -207,6 +231,12 @@ class ArgoExecutor(BaseExecutor):
                 raise Exception(msg) from _e
             secret = SecretEnvVar(environment_variable=secret_env, secret_name=secret_name, secret_key=key)
             container.env.append(secret)
+
+        if working_on.name == self.dag.start_at:
+            for key, _ in self.get_parameters().items():
+                # Get the value from work flow parameters for dynamic behavior
+                env_var = EnvVar(name=defaults.PARAMETER_PREFIX + key, value="{{workflow.parameters." + key + "}}")
+                container.env.append(env_var)
 
         container_template = ContainerTemplate(name=self.get_clean_name(working_on.name), container=container)
 
@@ -253,6 +283,12 @@ class ArgoExecutor(BaseExecutor):
         specification = Spec()
         workspec.spec = specification
 
+        for key, value in self.get_parameters().items():
+            # Get the value from work flow parameters for dynamic behavior
+            env_var = EnvVar(name=defaults.PARAMETER_PREFIX + key, value=value)
+            specification.arguments.append(env_var)
+
+        # TODO add run_id as a parameter
         container_templates, task_templates = self.get_templates(dag=dag)
         specification.templates.extend(container_templates)
         dag_template = DagTemplate(tasks=task_templates)
