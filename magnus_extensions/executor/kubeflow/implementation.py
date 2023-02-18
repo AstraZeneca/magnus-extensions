@@ -5,6 +5,7 @@ from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
 from magnus.graph import Graph
 from magnus.nodes import BaseNode
+from ruamel.yaml import YAML
 
 logger = logging.getLogger(defaults.NAME)
 
@@ -21,6 +22,7 @@ except ImportError as _e:
 
 _EXECUTOR = None
 _GRAPH = None
+_PARAMETERS = None
 
 
 def secret_to_env_var(secret_name: str, secret_key: str, env_var_name: str) -> V1EnvVar:
@@ -31,9 +33,15 @@ def secret_to_env_var(secret_name: str, secret_key: str, env_var_name: str) -> V
     )
 
 
+def disable_cache(task):
+    """Disables caching on passed task"""
+    task.execution_options.caching_strategy.max_cache_staleness = "P0D"
+
+
 class KubeFlowExecutor(BaseExecutor):
 
     service_name = "kfp"
+    run_id_placeholder = dsl.RUN_ID_PLACEHOLDER  # {{workflow.uid}}
 
     class Config(BaseExecutor.Config):
         docker_image: str
@@ -43,7 +51,7 @@ class KubeFlowExecutor(BaseExecutor):
         default_cpu_request: str = ""
         default_memory_request: str = ""
         enable_caching: bool = False
-        image_pull_policy: str = "IfNotPresent"
+        image_pull_policy: str = "Always"
         secrets_from_k8s: dict = None  # EnvVar=SecretName:Key
 
     def prepare_for_graph_execution(self):
@@ -102,18 +110,21 @@ class KubeFlowExecutor(BaseExecutor):
 
         # Implicit fail
         _, next_node_name = self._get_status_and_next_node_name(node, self.dag, map_variable=map_variable)
-        next_node = self.dag.get_node_by_name(next_node_name)
+        # Terminal nodes do not have next node
+        if next_node_name:
+            next_node = self.dag.get_node_by_name(next_node_name)
 
-        if next_node.node_type == defaults.FAIL:
-            self.execute_node(next_node, map_variable=map_variable)
+            if next_node.node_type == defaults.FAIL:
+                self.execute_node(next_node, map_variable=map_variable)
 
         step_log = self.run_log_store.get_step_log(node._get_step_log_name(map_variable), self.run_id)
         if step_log.status == defaults.FAIL:
             raise Exception(f'Step {node.name} failed')
 
     def create_container_op(self, working_on: BaseNode):
+        global _GRAPH
         command = shlex.split(utils.get_node_execution_command(self, working_on,
-                                                               over_write_run_id='{{workflow.uid}}'))
+                                                               over_write_run_id=self.run_id_placeholder))
         mode_config = self._resolve_node_config(working_on)
 
         docker_image = mode_config['docker_image']
@@ -144,15 +155,42 @@ class KubeFlowExecutor(BaseExecutor):
             operator.add_env_variable(secret_to_env_var(secret_name=secret_name,
                                       secret_key=key, env_var_name=secret_env))
 
+        if _GRAPH.start_at == working_on.name:
+            global _PARAMETERS
+            parameters = _PARAMETERS
+
+            for key, _ in parameters.items():
+                operator.add_env_variable(V1EnvVar(name=defaults.PARAMETER_PREFIX + key,
+                                          value="{{workflow.parameters." + key + "}}"))
+
         return operator
 
     def execute_graph(self, dag: Graph, map_variable: dict = None, **kwargs):
-        global _EXECUTOR, _GRAPH
+        global _EXECUTOR, _GRAPH, _PARAMETERS
 
         _EXECUTOR = self
         _GRAPH = dag
 
-        Compiler().compile(convert_to_kfp, self.config.output_file)
+        compiler = Compiler()
+        # set parameters as Kfp parameters
+        parameters = utils.get_user_set_parameters()
+        if self.parameters_file:
+            parameters.update(utils.load_yaml(self.parameters_file))
+        _PARAMETERS = parameters
+
+        pipeline_params = []
+        for param_key, param_value in parameters.items():
+            param = dsl.PipelineParam(name=param_key, value=param_value)
+            pipeline_params.append(param)
+
+        pipeline_params.append(dsl.PipelineParam(name='run_id', value=self.run_id_placeholder))
+
+        pipeline = compiler.create_workflow(pipeline_func=convert_to_kfp,
+                                            pipeline_name='magnus_dag', params_list=pipeline_params)
+        # compiler.compile(convert_to_kfp, self.config.output_file)
+        yaml = YAML()
+        with open(self.config.output_file, 'w') as f:
+            yaml.dump(pipeline, f)
 
     def send_return_code(self, stage='traversal'):
         """
@@ -169,10 +207,10 @@ class KubeFlowExecutor(BaseExecutor):
                 raise Exception('Pipeline execution failed')
 
 
-@dsl.pipeline(name='magnus-dag')
+# @dsl.pipeline(name='magnus-dag')
 def convert_to_kfp():
     """
-    Just to satisfy the way KFP is designed.
+    The function that makes the workflow
     """
     dag = _GRAPH
     self = _EXECUTOR
@@ -192,6 +230,7 @@ def convert_to_kfp():
             raise Exception('Potentially running in a infinite loop')
 
         container_operator = self.create_container_op(working_on=working_on)
+
         if container_operator not in container_operators:
             container_operators[current_node] = container_operator
 
@@ -218,3 +257,7 @@ def convert_to_kfp():
             break
 
         current_node = working_on._get_next_node()
+
+    # Disable caching if asked
+    if not self.config.enable_caching:
+        dsl.get_pipeline_conf().add_op_transformer(disable_cache)
