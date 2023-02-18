@@ -33,6 +33,16 @@ class EnvVar(BaseModel):
     name: str
     value: Any
 
+    def dict(self, *args, **kwargs):
+        return_value = {
+            "name": self.name
+        }
+
+        if self.value:
+            return_value["value"] = self.value
+
+        return return_value
+
 
 class Resource(BaseModel):
     memory: str
@@ -285,10 +295,13 @@ class ArgoExecutor(BaseExecutor):
 
         for key, value in self.get_parameters().items():
             # Get the value from work flow parameters for dynamic behavior
-            env_var = EnvVar(name=defaults.PARAMETER_PREFIX + key, value=value)
+            env_var = EnvVar(name=key, value=value)
             specification.arguments.append(env_var)
 
         # TODO add run_id as a parameter
+        run_id_var = EnvVar(name="run_id", value="{{workflow.uid}}")
+        specification.arguments.append(run_id_var)
+
         container_templates, task_templates = self.get_templates(dag=dag)
         specification.templates.extend(container_templates)
         dag_template = DagTemplate(tasks=task_templates)
