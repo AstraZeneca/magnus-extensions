@@ -298,7 +298,6 @@ class ArgoExecutor(BaseExecutor):
             env_var = EnvVar(name=key, value=value)
             specification.arguments.append(env_var)
 
-        # TODO add run_id as a parameter
         run_id_var = EnvVar(name="run_id", value="{{workflow.uid}}")
         specification.arguments.append(run_id_var)
 
