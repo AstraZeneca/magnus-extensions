@@ -142,7 +142,9 @@ class KubeFlowExecutor(BaseExecutor):
             memory_request).set_cpu_request(cpu_request).set_cpu_limit(cpu_limit)
 
         operator.set_retry(str(working_on._get_max_attempts()))
-        operator.container.set_image_pull_policy(self.config.image_pull_policy)
+
+        image_pull_policy = mode_config.get("image_pull_policy", self.config.image_pull_policy)
+        operator.container.set_image_pull_policy(image_pull_policy)
 
         for secret_env, k8_secret in secrets.items():
             try:

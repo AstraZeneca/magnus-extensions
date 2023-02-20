@@ -229,8 +229,10 @@ class ArgoExecutor(BaseExecutor):
         request = Resource(memory=memory_request, cpu=cpu_request)
         limits = Resource(memory=memory_limit, cpu=cpu_limit)
 
+        image_pull_policy = mode_config.get("image_pull_policy", self.config.image_pull_policy)
+
         container = Container(command=command, image=docker_image, limits=limits, requests=request,
-                              imagePullPolicy=self.config.image_pull_policy, retry=working_on._get_max_attempts())
+                              imagePullPolicy=image_pull_policy, retry=working_on._get_max_attempts())
         for secret_env, k8_secret in secrets.items():
             try:
                 secret_name, key = k8_secret.split(':')
