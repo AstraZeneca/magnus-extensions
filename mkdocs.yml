@@ -57,8 +57,8 @@ nav:
       "Argo": "executor/argo.md"
   - "Catalog":
       - "S3": "catalog/s3.md"
-  - "Secrets":
-      - "AWS Secrets Manager": "secrets/aws_secrets_manager.md"
+  # - "Secrets":
+  #     - "AWS Secrets Manager": "secrets/aws_secrets_manager.md"
   - "Run Log Store":
       - "S3": "run_log_store/s3.md"
       #- "Database": "run_log_store/database.md"

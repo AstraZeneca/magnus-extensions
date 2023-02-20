@@ -15,7 +15,7 @@ Since argo is a cloud based orchestration tool, other services which are not acc
 
 ## Configuration
 
-The full configuration to use Kubeflow extension:
+The full configuration to use Argo extension:
 
 ```yaml
 mode:
