@@ -94,13 +94,6 @@ class S3Catalog(BaseCatalog, AWSConfigMixin):
         if compute_data_folder:
             copy_to = compute_data_folder
 
-        if not utils.does_dir_exist(copy_to):
-            msg = (
-                f'Expected compute data folder to be present at: {copy_to} but not found. \n'
-                'Note: Magnus does not create the compute data folder for you. Please ensure that the folder exists.\n'
-            )
-            raise Exception(msg)
-
         s3_client = self.get_s3()
         self.check_s3_access(s3_client, self.bucket_name)
 
