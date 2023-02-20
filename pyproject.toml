@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "magnus_extensions"
-version = "0.1.0"
+version = "0"
 description = "Extensions to Magnus core"
 authors = ["Vijay Vammi <mesanthu@gmail.com>"]
 license = "Apache-2.0"
