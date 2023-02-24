@@ -39,6 +39,7 @@ python-semantic-release = "^7.33.1"
 
 [tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
 "s3" = "magnus_extensions.datastore.s3.implementation:S3Store"
+"chunked-s3" = "magnus_extensions.datastore.chunked_s3.implementation:ChunkedS3Store"
 
 [tool.poetry.plugins."magnus.secrets.BaseSecrets"]
 "aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
@@ -65,6 +66,10 @@ python-semantic-release = "^7.33.1"
 "argo-run_log_store-buffered" = "magnus_extensions.executor.argo.integration:ArgoComputeBufferedRunLogStore"
 "argo-run_log_store-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemRunLogStore"
 "argo-catalog-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemCatalog"
+# Chunked S3 run log store
+"local-container-run_log_store-chunked-s3" = "magnus_extensions.datastore.chunked_s3.integration:LocalContainerComputeS3Store"
+
+
 
 [build-system]
 requires = ["poetry-core"]
