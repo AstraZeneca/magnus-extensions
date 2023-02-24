@@ -1,5 +1,7 @@
 site_name: Magnus Extensions
-site_description: "Extends magnus"
+site_description: "Extends magnus to Cloud"
+strict: true
+repo_url: https://github.com/AstraZeneca/magnus-extensions
 
 docs_dir: "docs"
 theme:
@@ -14,14 +16,14 @@ theme:
     search: 83 # s
   palette:
     - scheme: default
-      primary: teal
-      accent: amber
+      primary: amber
+      accent: red
       toggle:
         icon: material/lightbulb-outline
         name: Switch to dark mode
     - scheme: slate
-      primary: teal
-      accent: amber
+      primary: amber
+      accent: red
       toggle:
         icon: material/lightbulb
         name: Switch to light mode
@@ -30,6 +32,8 @@ theme:
     - navigation.top
     - toc.integrate
     - search.suggest
+    - navigation.tabs
+    - navigation.tabs.sticky
 
 # Extensions
 markdown_extensions:
@@ -53,13 +57,14 @@ nav:
   - "Home": "index.md"
   - "Installation": "installation.md"
   - "Executor":
-      "Kubeflow": "executor/kfp.md"
-      "Argo": "executor/argo.md"
+      - "Kubeflow": "executor/kfp.md"
+      - "Argo": "executor/argo.md"
   - "Catalog":
       - "S3": "catalog/s3.md"
   # - "Secrets":
   #     - "AWS Secrets Manager": "secrets/aws_secrets_manager.md"
   - "Run Log Store":
       - "S3": "run_log_store/s3.md"
+      - "Chunked S3": "run_log_store/chunked-s3.md"
       #- "Database": "run_log_store/database.md"
   #- "Experiment Tracking":
