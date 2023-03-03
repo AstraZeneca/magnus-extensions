@@ -33,10 +33,11 @@ mode:
   config:
     docker_image: str
     output_file: str
-    default_cpu_limit: str
-    default_memory_limit: str
-    default_cpu_request: str
-    default_memory_request: str
+    cpu_limit: str
+    memory_limit: str
+    cpu_request: str
+    memory_request: str
+    gpu_limit: int
     enable_caching: bool
     image_pull_policy: str
     secrets_from_k8s: dict
@@ -71,21 +72,25 @@ The docker image to use to run the dag/step.
 The name of the output file to write the generated pipeline definition via Kubeflow.
 Defaults to ```pipeline.yaml```.
 
-- ### default_cpu_limit:
+- ### cpu_limit:
 
 The default cpu limit from K8's. Defaults to 250m.
 
-- ### default_memory_limit:
+- ### memory_limit:
 
 The default memory limit from K8's. Defaults to 1G.
 
-- ### default_cpu_request:
+- ### cpu_request:
 
 The default cpu to request from K8's. If not provided, it is the same as default_cpu_limit.
 
-- ### default_memory_request:
+- ### memory_request:
 
 The default memory request from K8's. if not provided, it is the same as default_memory_limit.
+
+- ### gpu_limit:
+
+The gpu's to request from K8's. Defaults to 0.
 
 - ### enable_caching:
 

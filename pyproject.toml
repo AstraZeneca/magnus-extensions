@@ -9,10 +9,10 @@ packages = [{include = "magnus_extensions"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-magnus = "^0.4.1"
 boto3 ={ version = "*", optional = true }
 kfp = {version= "^1.8.18", optional = true }
 sqlalchemy = { version = "*", optional = true }
+magnus = {version = "^0.4.7"}
 
 [tool.poetry.extras]
 aws = ["boto3"]

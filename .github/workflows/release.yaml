@@ -31,7 +31,7 @@ jobs:
       - name: Figure version
         id: last_tag
         run: |
-          VERSION=$(semantic-release print-version)
+          VERSION=$(semantic-release print-version --patch)
           echo $VERSION
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Apply new tag
@@ -60,6 +60,8 @@ jobs:
 
       - name: "Create release"
         uses: "actions/github-script@v6"
+        env:
+          RELEASE_TAG: ${{ steps.last_tag.outputs.version }}
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           script: |

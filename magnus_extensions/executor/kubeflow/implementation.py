@@ -23,6 +23,7 @@ except ImportError as _e:
 _EXECUTOR = None
 _GRAPH = None
 _PARAMETERS = None
+_NODE = None
 
 
 def secret_to_env_var(secret_name: str, secret_key: str, env_var_name: str) -> V1EnvVar:
@@ -41,18 +42,20 @@ def disable_cache(task):
 class KubeFlowExecutor(BaseExecutor):
 
     service_name = "kfp"
-    run_id_placeholder = dsl.RUN_ID_PLACEHOLDER  # {{workflow.uid}}
+    run_id_placeholder = dsl.RUN_ID_PLACEHOLDER
+    replace_run_id = "{{workflow.parameters.run_id}}"
 
     class Config(BaseExecutor.Config):
         docker_image: str
         output_file: str = 'pipeline.yaml'
-        default_cpu_limit: str = "250m"
-        default_memory_limit: str = "1G"
-        default_cpu_request: str = ""
-        default_memory_request: str = ""
+        cpu_limit: str = "250m"
+        memory_limit: str = "1G"
+        gpu_limit: int = 0
+        cpu_request: str = ""
+        memory_request: str = ""
         enable_caching: bool = False
         image_pull_policy: str = "Always"
-        secrets_from_k8s: dict = None  # EnvVar=SecretName:Key
+        secrets_from_k8s: dict = {}  # EnvVar=SecretName:Key
 
     def prepare_for_graph_execution(self):
         """
@@ -93,9 +96,33 @@ class KubeFlowExecutor(BaseExecutor):
 
         self._set_up_run_log(exists_ok=True)
 
-    def trigger_job(self, node: BaseNode, map_variable: dict = None, **kwargs):
-        # TODO: This might have to be removed once core is corrected
-        pass
+    def execute_job(self, node: BaseNode):
+        global _EXECUTOR, _PARAMETERS, _NODE
+
+        _EXECUTOR = self
+        _NODE = node
+
+        compiler = Compiler()
+        # set parameters as Kfp parameters
+        parameters = utils.get_user_set_parameters()
+        if self.parameters_file:
+            parameters.update(utils.load_yaml(self.parameters_file))
+        _PARAMETERS = parameters
+
+        pipeline_params = []
+        for param_key, param_value in parameters.items():
+            param = dsl.PipelineParam(name=param_key, value=param_value)
+            pipeline_params.append(param)
+
+        pipeline_params.append(dsl.PipelineParam(name='run_id', value=self.run_id_placeholder))
+
+        pipeline = compiler.create_workflow(pipeline_func=convert_to_kfp_job,
+                                            pipeline_name='magnus_dag', params_list=pipeline_params)
+
+        # compiler.compile(convert_to_kfp, self.config.output_file)
+        yaml = YAML()
+        with open(self.config.output_file, 'w') as f:
+            yaml.dump(pipeline, f)
 
     def execute_node(self, node: BaseNode, map_variable: dict = None, **kwargs):
         step_log = self.run_log_store.create_step_log(node.name, node._get_step_log_name(map_variable))
@@ -109,22 +136,23 @@ class KubeFlowExecutor(BaseExecutor):
         super()._execute_node(node, map_variable=map_variable, **kwargs)
 
         # Implicit fail
-        _, next_node_name = self._get_status_and_next_node_name(node, self.dag, map_variable=map_variable)
-        # Terminal nodes do not have next node
-        if next_node_name:
-            next_node = self.dag.get_node_by_name(next_node_name)
+        if self.dag:
+            # notebook or func does not have dag definitions.
+            _, next_node_name = self._get_status_and_next_node_name(node, self.dag, map_variable=map_variable)
+            # Terminal nodes do not have next node
+            if next_node_name:
+                next_node = self.dag.get_node_by_name(next_node_name)
 
-            if next_node.node_type == defaults.FAIL:
-                self.execute_node(next_node, map_variable=map_variable)
+                if next_node.node_type == defaults.FAIL:
+                    self.execute_node(next_node, map_variable=map_variable)
 
         step_log = self.run_log_store.get_step_log(node._get_step_log_name(map_variable), self.run_id)
         if step_log.status == defaults.FAIL:
             raise Exception(f'Step {node.name} failed')
 
-    def create_container_op(self, working_on: BaseNode):
+    def create_container_op(self, working_on: BaseNode, command: str):
         global _GRAPH
-        command = shlex.split(utils.get_node_execution_command(self, working_on,
-                                                               over_write_run_id=self.run_id_placeholder))
+        command = shlex.split(command)
         mode_config = self._resolve_node_config(working_on)
 
         docker_image = mode_config['docker_image']
@@ -132,14 +160,19 @@ class KubeFlowExecutor(BaseExecutor):
 
         operator = dsl.ContainerOp(name=working_on._command_friendly_name(), image=docker_image, command=command)
 
-        cpu_limit = mode_config.get('cpu_limit', self.config.default_cpu_limit)
-        memory_limit = mode_config.get('memory_limit', self.config.default_memory_limit)
+        cpu_limit = mode_config.get('cpu_limit', self.config.cpu_limit)
+        memory_limit = mode_config.get('memory_limit', self.config.memory_limit)
 
-        cpu_request = mode_config.get('cpu_request', self.config.default_cpu_request) or cpu_limit
-        memory_request = mode_config.get('memory_request', self.config.default_memory_request) or memory_limit
+        cpu_request = mode_config.get('cpu_request', self.config.cpu_request) or cpu_limit
+        memory_request = mode_config.get('memory_request', self.config.memory_request) or memory_limit
+
+        gpu_limit = mode_config.get("gpu_limit", self.config.gpu_limit)
 
         operator.set_memory_limit(memory_limit).set_memory_request(
             memory_request).set_cpu_request(cpu_request).set_cpu_limit(cpu_limit)
+
+        if gpu_limit:
+            operator.set_gpu_limit(gpu_limit)
 
         operator.set_retry(str(working_on._get_max_attempts()))
 
@@ -157,7 +190,7 @@ class KubeFlowExecutor(BaseExecutor):
             operator.add_env_variable(secret_to_env_var(secret_name=secret_name,
                                       secret_key=key, env_var_name=secret_env))
 
-        if _GRAPH.start_at == working_on.name:
+        if _GRAPH and _GRAPH.start_at == working_on.name:
             global _PARAMETERS
             parameters = _PARAMETERS
 
@@ -209,7 +242,27 @@ class KubeFlowExecutor(BaseExecutor):
                 raise Exception('Pipeline execution failed')
 
 
-# @dsl.pipeline(name='magnus-dag')
+def convert_to_kfp_job():
+    """
+    The function that makes the workflow
+    """
+    self = _EXECUTOR
+    node = _NODE
+    parameters = _PARAMETERS
+
+    command = utils.get_job_execution_command(self, node,
+                                              over_write_run_id=self.replace_run_id)
+    container_operator = self.create_container_op(working_on=node, command=command)
+
+    for key, _ in parameters.items():
+        container_operator.add_env_variable(V1EnvVar(name=defaults.PARAMETER_PREFIX + key,
+                                                     value="{{workflow.parameters." + key + "}}"))
+
+    # Disable caching if asked
+    if not self.config.enable_caching:
+        dsl.get_pipeline_conf().add_op_transformer(disable_cache)
+
+
 def convert_to_kfp():
     """
     The function that makes the workflow
@@ -231,7 +284,9 @@ def convert_to_kfp():
         if previous_node == current_node:
             raise Exception('Potentially running in a infinite loop')
 
-        container_operator = self.create_container_op(working_on=working_on)
+        command = utils.get_node_execution_command(self, working_on,
+                                                   over_write_run_id=self.replace_run_id)
+        container_operator = self.create_container_op(working_on=working_on, command=command)
 
         if container_operator not in container_operators:
             container_operators[current_node] = container_operator
