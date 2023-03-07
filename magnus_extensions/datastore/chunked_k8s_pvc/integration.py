@@ -45,8 +45,8 @@ class KfpCompute(BaseIntegration):
     service_provider = 'chunked-k8s-pvc'  # The actual implementation of the service
 
     def configure_for_traversal(self, **kwargs):
-        self.executor.persistent_volumes["run_log_store"] = (
-            self.service.persistent_volume_name, self.service.mount_path)
+        self.executor.persistent_volumes["run-log-store"] = (
+            self.service.config.persistent_volume_name, self.service.config.mount_path)
 
 
 class ArgoCompute(BaseIntegration):
@@ -58,5 +58,5 @@ class ArgoCompute(BaseIntegration):
     service_provider = 'chunked-k8s-pvc'  # The actual implementation of the service
 
     def configure_for_traversal(self, **kwargs):
-        self.executor.persistent_volumes["run_log_store"] = (
-            self.service.persistent_volume_name, self.service.mount_path)
+        self.executor.persistent_volumes["run-log-store"] = (
+            self.service.config.persistent_volume_name, self.service.config.mount_path)
