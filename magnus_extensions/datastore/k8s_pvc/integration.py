@@ -7,12 +7,12 @@ from magnus.integration import BaseIntegration
 logger = logging.getLogger(defaults.NAME)
 
 
-class LocalComputeK8sPVCStore(BaseIntegration):
+class LocalCompute(BaseIntegration):
     """
     Integration between local and k8's pvc
     """
     mode_type = 'local'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
     def validate(self, **kwargs):
@@ -22,12 +22,12 @@ class LocalComputeK8sPVCStore(BaseIntegration):
         raise Exception(msg)
 
 
-class LocalContainerComputeK8sPVCStore(BaseIntegration):
+class LocalContainerCompute(BaseIntegration):
     """
     Integration between local-container and k8's pvc
     """
     mode_type = 'local-container'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
     def validate(self, **kwargs):
@@ -37,27 +37,27 @@ class LocalContainerComputeK8sPVCStore(BaseIntegration):
         raise Exception(msg)
 
 
-class KfpComputeK8sPVCStore(BaseIntegration):
+class KfpCompute(BaseIntegration):
     """
     Integration between kfp and k8's pvc
     """
     mode_type = 'kfp'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
     def configure_for_traversal(self, **kwargs):
         self.executor.persistent_volumes["run_log_store"] = (
-            self.service.persistent_volume_name, self.service.mount_path)
+            self.service.config.persistent_volume_name, self.service.config.mount_path)
 
 
-class ArgoComputeK8sPVCStore(BaseIntegration):
+class ArgoCompute(BaseIntegration):
     """
     Integration between argo and k8's pvc
     """
     mode_type = 'argo'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
     def configure_for_traversal(self, **kwargs):
         self.executor.persistent_volumes["run_log_store"] = (
-            self.service.persistent_volume_name, self.service.mount_path)
+            self.service.config.persistent_volume_name, self.service.config.mount_path)

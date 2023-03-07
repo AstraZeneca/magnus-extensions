@@ -3,7 +3,7 @@ from pathlib import Path
 from magnus.integration import BaseIntegration
 
 
-class LocalContainerComputeS3Catalog(BaseIntegration):
+class LocalContainerCompute(BaseIntegration):
     """
     Integration pattern between Local container and S3  catalog
     """

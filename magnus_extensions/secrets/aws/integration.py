@@ -3,7 +3,7 @@ from pathlib import Path
 from magnus.integration import BaseIntegration
 
 
-class LocalContainerComputeAWSSecrets(BaseIntegration):
+class LocalContainerCompute(BaseIntegration):
     """
     Integration between local container and AWS secrets
     """

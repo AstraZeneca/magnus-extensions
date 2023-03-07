@@ -7,7 +7,7 @@ from magnus.integration import BaseIntegration
 logger = logging.getLogger(defaults.NAME)
 
 
-class LocalComputeS3RunLogStore(BaseIntegration):
+class LocalCompute(BaseIntegration):
     """
     Local compute and File system run log store
     """
@@ -26,12 +26,12 @@ class LocalComputeS3RunLogStore(BaseIntegration):
             logger.warning(msg)
 
 
-class LocalContainerComputeS3Store(BaseIntegration):
+class LocalContainerCompute(BaseIntegration):
     """
     Integration between local container and S3 run log store
     """
     mode_type = 'local-container'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 's3'  # The actual implementation of the service
 
     def validate(self, **kwargs):

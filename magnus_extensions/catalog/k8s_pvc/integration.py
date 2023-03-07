@@ -6,7 +6,7 @@ from magnus.integration import BaseIntegration
 logger = logging.getLogger(defaults.NAME)
 
 
-class LocalComputeK8sPVCCatalog(BaseIntegration):
+class LocalCompute(BaseIntegration):
     """
     Integration between local and k8's pvc
     """
@@ -21,7 +21,7 @@ class LocalComputeK8sPVCCatalog(BaseIntegration):
         raise Exception(msg)
 
 
-class LocalContainerComputeK8sPVCCatalog(BaseIntegration):
+class LocalContainerCompute(BaseIntegration):
     """
     Integration between local-container and k8's pvc
     """
@@ -36,7 +36,7 @@ class LocalContainerComputeK8sPVCCatalog(BaseIntegration):
         raise Exception(msg)
 
 
-class KfpComputeK8sPVCCatalog(BaseIntegration):
+class KfpCompute(BaseIntegration):
     """
     Integration between kfp and k8's pvc
     """
@@ -48,7 +48,7 @@ class KfpComputeK8sPVCCatalog(BaseIntegration):
         self.executor.persistent_volumes["catalog"] = (self.service.persistent_volume_name, self.service.mount_path)
 
 
-class ArgoComputeK8sPVCCatalog(BaseIntegration):
+class ArgoCompute(BaseIntegration):
     """
     Integration between argo and k8's pvc
     """

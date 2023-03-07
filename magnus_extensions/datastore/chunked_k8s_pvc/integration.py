@@ -6,12 +6,12 @@ from magnus.integration import BaseIntegration
 logger = logging.getLogger(defaults.NAME)
 
 
-class LocalComputeChunkedK8sPVCStore(BaseIntegration):
+class LocalCompute(BaseIntegration):
     """
     Integration between local and k8's pvc
     """
     mode_type = 'local'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'chunked-k8s-pvc'  # The actual implementation of the service
 
     def validate(self, **kwargs):
@@ -21,12 +21,12 @@ class LocalComputeChunkedK8sPVCStore(BaseIntegration):
         raise Exception(msg)
 
 
-class LocalContainerComputeChunkedK8sPVCStore(BaseIntegration):
+class LocalContainerCompute(BaseIntegration):
     """
     Integration between local-container and k8's pvc
     """
     mode_type = 'local-container'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'chunked-k8s-pvc'  # The actual implementation of the service
 
     def validate(self, **kwargs):
@@ -36,12 +36,12 @@ class LocalContainerComputeChunkedK8sPVCStore(BaseIntegration):
         raise Exception(msg)
 
 
-class KfpComputeChunkedK8sPVCStore(BaseIntegration):
+class KfpCompute(BaseIntegration):
     """
     Integration between kfp and k8's pvc
     """
     mode_type = 'kfp'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'chunked-k8s-pvc'  # The actual implementation of the service
 
     def configure_for_traversal(self, **kwargs):
@@ -49,12 +49,12 @@ class KfpComputeChunkedK8sPVCStore(BaseIntegration):
             self.service.persistent_volume_name, self.service.mount_path)
 
 
-class ArgoComputeChunkedK8sPVCStore(BaseIntegration):
+class ArgoCompute(BaseIntegration):
     """
     Integration between argo and k8's pvc
     """
     mode_type = 'argo'
-    service_type = 'run-log-store'  # One of secret, catalog, datastore
+    service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'chunked-k8s-pvc'  # The actual implementation of the service
 
     def configure_for_traversal(self, **kwargs):
