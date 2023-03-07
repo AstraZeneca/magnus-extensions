@@ -65,6 +65,11 @@ class Limit(BaseModel):
         return resource
 
 
+class VolumeMount(BaseModel):
+    mountPath: str
+    name: str
+
+
 class Container(BaseModel):
     command: List[str]
     image: str
@@ -73,6 +78,7 @@ class Container(BaseModel):
     imagePullPolicy: str = "IfNotPresent"
     retry: int = 1
     env: List[Union[SecretEnvVar, EnvVar]] = []
+    volumeMounts: List[VolumeMount] = []
 
     def dict(self, *args, **kwargs) -> dict:
         return {
@@ -84,7 +90,8 @@ class Container(BaseModel):
                 "requests": self.requests.dict()
             },
             "retryStrategy": {"limit": str(self.retry)},
-            "env": [e.dict() for e in self.env]
+            "env": [e.dict() for e in self.env],
+            "volumeMounts": [v.dict() for v in self.volumeMounts]
         }
 
 
@@ -112,15 +119,30 @@ class DagTemplate(BaseModel):
         }
 
 
+class Volume(BaseModel):
+    name: str
+    claim: str
+
+    def dict(self, *args, **kwargs) -> dict:
+        return {
+            "name": self.name,
+            "persistentVolumeClaim": {
+                "claimName": self.claim
+            }
+        }
+
+
 class Spec(BaseModel):
     entrypoint: str = "magnus-dag"
     templates: Union[DagTemplate, ContainerTemplate] = []
     serviceAccountName: str = "pipeline-runner"
     arguments: List[EnvVar] = []
+    volumes: List[Volume] = []
 
     def dict(self, *args, **kwargs):
         return {
             "entrypoint": self.entrypoint,
+            "volumes": [v.dict() for v in self.volumes],
             "templates": [template.dict() for template in self.templates],
             "serviceAccountName": self.serviceAccountName,
             "arguments": {
@@ -153,6 +175,10 @@ class ArgoExecutor(BaseExecutor):
         image_pull_policy: str = "Always"
         secrets_from_k8s: dict = {}
 
+    def __init__(self, config: dict = None):
+        super().__init__(config)
+        self.persistent_volumes = {}
+
     def prepare_for_graph_execution(self):
         """
         This method would be called prior to calling execute_graph.
@@ -172,6 +198,9 @@ class ArgoExecutor(BaseExecutor):
         integration.validate(self, self.secrets_handler)
         integration.configure_for_traversal(self, self.secrets_handler)
 
+        integration.validate(self, self.experiment_tracker)
+        integration.configure_for_traversal(self, self.experiment_tracker)
+
     def prepare_for_node_execution(self):
         """
         Perform any modifications to the services prior to execution of the node.
@@ -189,6 +218,9 @@ class ArgoExecutor(BaseExecutor):
 
         integration.validate(self, self.secrets_handler)
         integration.configure_for_execution(self, self.secrets_handler)
+
+        integration.validate(self, self.experiment_tracker)
+        integration.configure_for_execution(self, self.experiment_tracker)
 
         self._set_up_run_log(exists_ok=True)
 
@@ -265,6 +297,20 @@ class ArgoExecutor(BaseExecutor):
                 env_var = EnvVar(name=defaults.PARAMETER_PREFIX + key, value="{{workflow.parameters." + key + "}}")
                 container.env.append(env_var)
 
+        visited_claims = {}
+        for volume_name, claim in self.persistent_volumes.items():
+            claim_name, mount_path = claim
+
+            # If the volume is already mounted, we cannot mount it again.
+            if claim_name in visited_claims:
+                msg = (
+                    "The same persistent volume claim has already been used in the pipeline by another service"
+                )
+                raise Exception(msg)
+            visited_claims[claim_name] = claim_name
+
+            container.volumeMounts.append(VolumeMount(name=volume_name, mountPath=mount_path))
+
         container_template = ContainerTemplate(name=self.get_clean_name(working_on.name), container=container)
 
         return container_template
@@ -307,6 +353,20 @@ class ArgoExecutor(BaseExecutor):
         return [template for k, template in container_templates.items()], \
             [template for k, template in task_templates.items()]
 
+    def add_volumes_to_specification(self, specification: Spec):
+        visited_claims = {}
+        for volume_name, claim in self.persistent_volumes.items():
+            claim_name, mount_path = claim
+
+            # If the volume is already mounted, we cannot mount it again.
+            if claim_name in visited_claims:
+                msg = (
+                    "The same persistent volume claim has already been used in the pipeline by another service"
+                )
+                raise Exception(msg)
+            visited_claims[claim_name] = claim_name
+            specification.volumes.append(Volume(name=volume_name, claim=claim_name))
+
     def execute_graph(self, dag: Graph, map_variable: dict = None, **kwargs):
         workspec = WorkSpec()
         specification = Spec()
@@ -319,6 +379,9 @@ class ArgoExecutor(BaseExecutor):
 
         run_id_var = EnvVar(name="run_id", value="{{workflow.uid}}")
         specification.arguments.append(run_id_var)
+
+        # Add volumes to specification
+        self.add_volumes_to_specification(specification)
 
         container_templates, task_templates = self.get_templates(dag=dag)
         specification.templates.extend(container_templates)
@@ -340,6 +403,10 @@ class ArgoExecutor(BaseExecutor):
 
         run_id_var = EnvVar(name="run_id", value="{{workflow.uid}}")
         specification.arguments.append(run_id_var)
+
+        # Add volumes to specification
+        self.add_volumes_to_specification(specification)
+
         command = utils.get_job_execution_command(self, node, over_write_run_id=self.run_id_placeholder)
         container_template = self.create_container_template(working_on=node, command=command, add_parameters=True)
 
