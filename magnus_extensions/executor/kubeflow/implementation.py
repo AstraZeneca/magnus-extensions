@@ -1,6 +1,7 @@
 import logging
 import shlex
 
+from kfp.onprem import mount_pvc
 from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
 from magnus.graph import Graph
@@ -57,6 +58,10 @@ class KubeFlowExecutor(BaseExecutor):
         image_pull_policy: str = "Always"
         secrets_from_k8s: dict = {}  # EnvVar=SecretName:Key
 
+    def __init__(self, config: dict = None):
+        super().__init__(config)
+        self.persistent_volumes = {}
+
     def prepare_for_graph_execution(self):
         """
         This method would be called prior to calling execute_graph.
@@ -76,6 +81,9 @@ class KubeFlowExecutor(BaseExecutor):
         integration.validate(self, self.secrets_handler)
         integration.configure_for_traversal(self, self.secrets_handler)
 
+        integration.validate(self, self.experiment_tracker)
+        integration.configure_for_traversal(self, self.experiment_tracker)
+
     def prepare_for_node_execution(self):
         """
         Perform any modifications to the services prior to execution of the node.
@@ -93,6 +101,9 @@ class KubeFlowExecutor(BaseExecutor):
 
         integration.validate(self, self.secrets_handler)
         integration.configure_for_execution(self, self.secrets_handler)
+
+        integration.validate(self, self.experiment_tracker)
+        integration.configure_for_execution(self, self.experiment_tracker)
 
         self._set_up_run_log(exists_ok=True)
 
@@ -189,6 +200,20 @@ class KubeFlowExecutor(BaseExecutor):
                 raise Exception(msg) from _e
             operator.add_env_variable(secret_to_env_var(secret_name=secret_name,
                                       secret_key=key, env_var_name=secret_env))
+
+        visited_claims = {}
+        for volume_name, claim in self.persistent_volumes.items():
+            claim_name, mount_path = claim
+
+            # If the volume is already mounted, we cannot mount it again.
+            if claim_name in visited_claims:
+                msg = (
+                    "The same persistent volume claim has already been used in the pipeline by another service"
+                )
+                raise Exception(msg)
+            visited_claims[claim_name] = claim_name
+
+            operator.apply(mount_pvc(pvc_name=claim_name, volume_name=volume_name, volume_mount_path=mount_path))
 
         if _GRAPH and _GRAPH.start_at == working_on.name:
             global _PARAMETERS

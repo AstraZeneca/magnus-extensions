@@ -40,6 +40,7 @@ python-semantic-release = "^7.33.1"
 [tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
 "s3" = "magnus_extensions.datastore.s3.implementation:S3Store"
 "chunked-s3" = "magnus_extensions.datastore.chunked_s3.implementation:ChunkedS3Store"
+"k8s-pvc" = "magnus_extensions.datastore.k8s_pvc.implementation:K8PersistentVolumeRunLogstore"
 
 [tool.poetry.plugins."magnus.secrets.BaseSecrets"]
 "aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
@@ -68,7 +69,21 @@ python-semantic-release = "^7.33.1"
 "argo-catalog-file_system" = "magnus_extensions.executor.argo.integration:ArgoComputeFileSystemCatalog"
 # Chunked S3 run log store
 "local-container-run_log_store-chunked-s3" = "magnus_extensions.datastore.chunked_s3.integration:LocalContainerComputeS3Store"
-
+# K8s PVC run log store
+"local-run_log_store-k8spvc" = "magnus_extensions.datastore.k8s_pvc.integration:LocalComputeK8sPVCStore"
+"local-container-run_log_store-k8spvc" = "magnus_extensions.datastore.k8s_pvc.integration:LocalContainerComputeK8sPVCStore"
+"kfp-run-log-store-k8s_pvc" = "magnus_extensions.datastore.k8s_pvc.integration:KfpComputeK8sPVCStore"
+"argo-run-log-store-k8s_pvc" = "magnus_extensions.datastore.k8s_pvc.integration:ArgoComputeK8sPVCStore"
+# Chunked K8s PVC run log store
+"local-run_log_store-chunked-k8spvc" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:LocalComputeChunkedK8sPVCStore"
+"local-container-run_log_store-chunked-k8spvc" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:LocalContainerComputeChunkedK8sPVCStore"
+"kfp-run-log-store-chunked-k8s_pvc" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:KfpComputeChunkedK8sPVCStore"
+"argo-run-log-store-chunkled-k8s_pvc" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:ArgoComputeChunkedK8sPVCStore"
+# K8s PVC catalog
+"local-catalog-k8spvc" = "magnus_extensions.catalog.k8s_pvc.integration:LocalComputeK8sPVCCatalog"
+"local-container-catalog-k8spvc" = "magnus_extensions.catalog.k8s_pvc.integration:LocalContainerComputeK8sPVCCatalog"
+"kfp-catalog-k8s_pvc" = "magnus_extensions.catalog.k8s_pvc.integration:KfpComputeK8sPVCCatalog"
+"argo-catalog-k8s_pvc" = "magnus_extensions.catalog.k8s_pvc.integration:ArgoComputeK8sPVCCatalog"
 
 
 [build-system]

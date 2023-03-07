@@ -1,4 +1,9 @@
+import logging
+
+from magnus import defaults
 from magnus.integration import BaseIntegration
+
+logger = logging.getLogger(defaults.NAME)
 
 
 class ArgoComputeBufferedRunLogStore(BaseIntegration):
@@ -21,8 +26,10 @@ class ArgoComputeFileSystemRunLogStore(BaseIntegration):
     service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'file-system'  # The actual implementation of the service
 
-    def validate(self, **kwargs):
-        raise Exception('Argo cannot run work with file system as run log store')
+    msg = (
+        "Argo cannot run work with file-system run log store. Unless you have made a mechanism to use volume mounts"
+    )
+    logger.warning(msg)
 
 
 class ArgoComputeFileSystemCatalog(BaseIntegration):
@@ -33,5 +40,7 @@ class ArgoComputeFileSystemCatalog(BaseIntegration):
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 'file-system'  # The actual implementation of the service
 
-    def validate(self, **kwargs):
-        raise Exception('Argo cannot run work with file system catalog')
+    msg = (
+        "Argo cannot run work with file-system run log store. Unless you have made a mechanism to use volume mounts"
+    )
+    logger.warning(msg)
