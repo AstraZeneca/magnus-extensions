@@ -177,7 +177,7 @@ class ArgoExecutor(BaseExecutor):
 
     def __init__(self, config: dict = None):
         super().__init__(config)
-        self.persistent_volume_mounts = {}
+        self.persistent_volumes = {}
 
     def prepare_for_graph_execution(self):
         """
