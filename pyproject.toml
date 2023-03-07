@@ -36,11 +36,13 @@ python-semantic-release = "^7.33.1"
 # Use this section to provide the namespace to extend and implementation
 [tool.poetry.plugins."magnus.catalog.BaseCatalog"]
 "s3" = "magnus_extensions.catalog.s3.implementation:S3Catalog"
+"k8s-pvc" = "magnus_extensions.catalog.k8s_pvc.implementation:K8sPVCatalog"
 
 [tool.poetry.plugins."magnus.datastore.BaseRunLogStore"]
 "s3" = "magnus_extensions.datastore.s3.implementation:S3Store"
 "chunked-s3" = "magnus_extensions.datastore.chunked_s3.implementation:ChunkedS3Store"
 "k8s-pvc" = "magnus_extensions.datastore.k8s_pvc.implementation:K8PersistentVolumeRunLogstore"
+"chunked-k8s-pvc" = "magnus_extensions.datastore.chunked_k8s_pvc.implementation:ChunkedK8PersistentVolumeRunLogstore"
 
 [tool.poetry.plugins."magnus.secrets.BaseSecrets"]
 "aws-secrets-manager" = "magnus_extensions.secrets.aws.implementation:AWSSecretsManager"
