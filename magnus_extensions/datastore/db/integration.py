@@ -5,7 +5,7 @@ class LocalContainerComputeDBStore(BaseIntegration):
     """
     Integration between local container and DB run log store
     """
-    mode_type = 'local-container'
+    executor_type = 'local-container'
     service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'db'  # The actual implementation of the service
 

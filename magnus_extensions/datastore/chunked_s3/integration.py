@@ -11,7 +11,7 @@ class LocalContainerCompute(BaseIntegration):
     """
     Integration between local container and S3 run log store
     """
-    mode_type = 'local-container'
+    executor_type = 'local-container'
     service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'chunked-s3'  # The actual implementation of the service
 

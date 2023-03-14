@@ -10,7 +10,7 @@ class BufferedRunLogStore(BaseIntegration):
     """
     Only local execution mode is possible for Buffered Run Log store
     """
-    mode_type = 'argo'
+    executor_type = 'argo'
     service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'buffered'  # The actual implementation of the service
 
@@ -22,7 +22,7 @@ class FileSystemRunLogStore(BaseIntegration):
     """
     Only local execution mode is possible for Buffered Run Log store
     """
-    mode_type = 'argo'
+    executor_type = 'argo'
     service_type = 'run_log_store'  # One of secret, catalog, datastore
     service_provider = 'file-system'  # The actual implementation of the service
 
@@ -37,7 +37,7 @@ class FileSystemCatalog(BaseIntegration):
     """
     Only local execution mode is possible for Buffered Run Log store
     """
-    mode_type = 'argo'
+    executor_type = 'argo'
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 'file-system'  # The actual implementation of the service
 

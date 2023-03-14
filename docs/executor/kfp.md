@@ -28,7 +28,7 @@ Since kubeflow is a cloud based orchestration tool, other services which are not
 The full configuration to use Kubeflow extension:
 
 ```yaml
-mode:
+executor:
   type: "kfp"
   config:
     docker_image: str

@@ -63,8 +63,8 @@ class KubeFlowExecutor(BaseExecutor):
         super().__init__(config)
         self.persistent_volumes = {}
 
-        for volume_name, mount_path in self.config.persistent_volumes.items():
-            self.persistent_volumes["executor"] = (volume_name, mount_path)
+        for i, (volume_name, mount_path) in enumerate(self.config.persistent_volumes.items()):
+            self.persistent_volumes[f"executor-{i}"] = (volume_name, mount_path)
 
     def prepare_for_graph_execution(self):
         """

@@ -10,7 +10,7 @@ class LocalCompute(BaseIntegration):
     """
     Integration between local and k8's pvc
     """
-    mode_type = 'local'
+    executor_type = 'local'
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
@@ -25,7 +25,7 @@ class LocalContainerCompute(BaseIntegration):
     """
     Integration between local-container and k8's pvc
     """
-    mode_type = 'local-container'
+    executor_type = 'local-container'
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
@@ -40,7 +40,7 @@ class KfpCompute(BaseIntegration):
     """
     Integration between kfp and k8's pvc
     """
-    mode_type = 'kfp'
+    executor_type = 'kfp'
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
@@ -53,7 +53,7 @@ class ArgoCompute(BaseIntegration):
     """
     Integration between argo and k8's pvc
     """
-    mode_type = 'argo'
+    executor_type = 'argo'
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 'k8s-pvc'  # The actual implementation of the service
 
