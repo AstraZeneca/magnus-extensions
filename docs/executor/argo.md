@@ -18,7 +18,7 @@ Since argo is a cloud based orchestration tool, other services which are not acc
 The full configuration to use Argo extension:
 
 ```yaml
-mode:
+executor:
   type: "argo"
   config:
     docker_image: str

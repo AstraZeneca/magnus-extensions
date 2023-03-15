@@ -7,7 +7,7 @@ class LocalContainerCompute(BaseIntegration):
     """
     Integration pattern between Local container and S3  catalog
     """
-    mode_type = 'local-container'
+    executor_type = 'local-container'
     service_type = 'catalog'  # One of secret, catalog, datastore
     service_provider = 's3'  # The actual implementation of the service
 

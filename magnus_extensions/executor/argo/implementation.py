@@ -60,6 +60,7 @@ class Limit(BaseModel):
             "memory": self.memory
         }
         if self.gpu:
+            # TODO: This should be via config to allow users to specify the vendor
             resource["nvidia.com/gpu"] = self.gpu
 
         return resource
@@ -173,11 +174,15 @@ class ArgoExecutor(BaseExecutor):
         gpu_limit: int = 0
         enable_caching: bool = False
         image_pull_policy: str = "Always"
-        secrets_from_k8s: dict = {}
+        secrets_from_k8s: dict = {}  # EnvVar=SecretName:Key
+        persistent_volumes: dict = {}  # volume-name:mount_path
 
     def __init__(self, config: dict = None):
         super().__init__(config)
         self.persistent_volumes = {}
+
+        for i, (volume_name, mount_path) in enumerate(self.config.persistent_volumes.items()):
+            self.persistent_volumes[f"executor-{i}"] = (volume_name, mount_path)
 
     def prepare_for_graph_execution(self):
         """

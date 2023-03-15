@@ -7,7 +7,7 @@ class LocalContainerCompute(BaseIntegration):
     """
     Integration between local container and AWS secrets
     """
-    mode_type = 'local-container'
+    executor_type = 'local-container'
     service_type = 'secrets'  # One of secret, catalog, datastore
     service_provider = 'aws-secrets-manager'  # The actual implementation of the service
 

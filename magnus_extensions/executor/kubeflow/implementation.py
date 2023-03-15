@@ -57,10 +57,14 @@ class KubeFlowExecutor(BaseExecutor):
         enable_caching: bool = False
         image_pull_policy: str = "Always"
         secrets_from_k8s: dict = {}  # EnvVar=SecretName:Key
+        persistent_volumes: dict = {}  # volume-name:mount_path
 
     def __init__(self, config: dict = None):
         super().__init__(config)
         self.persistent_volumes = {}
+
+        for i, (volume_name, mount_path) in enumerate(self.config.persistent_volumes.items()):
+            self.persistent_volumes[f"executor-{i}"] = (volume_name, mount_path)
 
     def prepare_for_graph_execution(self):
         """
