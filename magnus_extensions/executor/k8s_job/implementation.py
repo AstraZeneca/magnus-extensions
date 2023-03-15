@@ -159,7 +159,8 @@ class K8sJobExecutor(BaseExecutor):
         pod_template = self._client.V1PodTemplateSpec(metadata=client.V1ObjectMeta(
             labels=self.config.labels, annotations={"sidecar.istio.io/inject": "false"}), spec=pod_spec)
 
-        job_spec = client.V1JobSpec(template=pod_template, backoff_limit=2)
+        job_spec = client.V1JobSpec(template=pod_template, backoff_limit=2,
+                                    ttl_seconds_after_finished=self.config.ttl_seconds_after_finished)
         job_spec.active_deadline_seconds = self.config.active_deadline_seconds
 
         job = client.V1Job(
