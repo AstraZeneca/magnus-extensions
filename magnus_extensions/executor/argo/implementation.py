@@ -60,6 +60,7 @@ class Limit(BaseModel):
             "memory": self.memory
         }
         if self.gpu:
+            # TODO: This should be via config to allow users to specify the vendor
             resource["nvidia.com/gpu"] = self.gpu
 
         return resource

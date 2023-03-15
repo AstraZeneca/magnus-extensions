@@ -13,7 +13,7 @@ boto3 ={ version = "*", optional = true }
 kfp = {version= "^1.8.18", optional = true }
 sqlalchemy = { version = "*", optional = true }
 kubernetes = { version = "*", optional = true }
-magnus = {version = "^0.4.7"}
+magnus = {extras = ["notebook"], version = "^0.4.11"}
 
 [tool.poetry.extras]
 aws = ["boto3"]
@@ -52,42 +52,48 @@ python-semantic-release = "^7.33.1"
 [tool.poetry.plugins."executor"]
 "kfp" = "magnus_extensions.executor.kubeflow.implementation:KubeFlowExecutor"
 "argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
+"k8s-job" = "magnus_extensions.executor.k8s_job.implementation:K8sJobExecutor"
 
 # Use this provide namespace of the integration
 # naming convention: keep it simple.
-[tool.poetry.plugins."magnus.integration.BaseIntegration"]
+[tool.poetry.plugins."integration"]
 #S3 catalog
-"e1" = "magnus_extensions.catalog.s3.integration:LocalContainerCompute"
+"s3catalog" = "magnus_extensions.catalog.s3.integration:LocalContainerCompute"
 # S3 run log store
-"e2" = "magnus_extensions.datastore.s3.integration:LocalContainerCompute"
-"e3" = "magnus_extensions.datastore.s3.integration:LocalCompute"
+"s3runlogcontainer" = "magnus_extensions.datastore.s3.integration:LocalContainerCompute"
+"s3runloglocal" = "magnus_extensions.datastore.s3.integration:LocalCompute"
 # AWS secrets manager
-"e4" = "magnus_extensions.secrets.aws.integration:LocalContainerCompute"
+"awssecrets" = "magnus_extensions.secrets.aws.integration:LocalContainerCompute"
 #KFP executor
-"e5" = "magnus_extensions.executor.kubeflow.integration:BufferedRunLogStore"
-"e6" = "magnus_extensions.executor.kubeflow.integration:FileSystemRunLogStore"
-"e7" = "magnus_extensions.executor.kubeflow.integration:FileSystemCatalog"
+"kfpbuffered" = "magnus_extensions.executor.kubeflow.integration:BufferedRunLogStore"
+"kfpfsrunlog" = "magnus_extensions.executor.kubeflow.integration:FileSystemRunLogStore"
+"kfpfscatalog" = "magnus_extensions.executor.kubeflow.integration:FileSystemCatalog"
 #Argo executor
-"e8" = "magnus_extensions.executor.argo.integration:BufferedRunLogStore"
-"e9" = "magnus_extensions.executor.argo.integration:FileSystemRunLogStore"
-"e10" = "magnus_extensions.executor.argo.integration:FileSystemCatalog"
+"argobuffered" = "magnus_extensions.executor.argo.integration:BufferedRunLogStore"
+"argofsrunlog" = "magnus_extensions.executor.argo.integration:FileSystemRunLogStore"
+"argofscatalog" = "magnus_extensions.executor.argo.integration:FileSystemCatalog"
 # Chunked S3 run log store
-"e11" = "magnus_extensions.datastore.chunked_s3.integration:LocalContainerCompute"
+"chunkedfs" = "magnus_extensions.datastore.chunked_s3.integration:LocalContainerCompute"
 # K8s PVC run log store
-"e12" = "magnus_extensions.datastore.k8s_pvc.integration:LocalCompute"
-"e13" = "magnus_extensions.datastore.k8s_pvc.integration:LocalContainerCompute"
-"e14" = "magnus_extensions.datastore.k8s_pvc.integration:KfpCompute"
-"e15" = "magnus_extensions.datastore.k8s_pvc.integration:ArgoCompute"
+"k8spvclocal" = "magnus_extensions.datastore.k8s_pvc.integration:LocalCompute"
+"k8spvccontainer" = "magnus_extensions.datastore.k8s_pvc.integration:LocalContainerCompute"
+"k8spvckfp" = "magnus_extensions.datastore.k8s_pvc.integration:KfpCompute"
+"k8spvcargo" = "magnus_extensions.datastore.k8s_pvc.integration:ArgoCompute"
 # Chunked K8s PVC run log store
-"e16" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:LocalCompute"
-"e17" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:LocalContainerCompute"
-"e18" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:KfpCompute"
-"e19" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:ArgoCompute"
+"chunkedpvclocal" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:LocalCompute"
+"chunkedpvccontainer" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:LocalContainerCompute"
+"chunkedpvckfp" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:KfpCompute"
+"chunkedpvcargo" = "magnus_extensions.datastore.chunked_k8s_pvc.integration:ArgoCompute"
 # K8s PVC catalog
-"e20" = "magnus_extensions.catalog.k8s_pvc.integration:LocalCompute"
-"e21" = "magnus_extensions.catalog.k8s_pvc.integration:LocalContainerCompute"
-"e22" = "magnus_extensions.catalog.k8s_pvc.integration:KfpCompute"
-"e23" = "magnus_extensions.catalog.k8s_pvc.integration:ArgoCompute"
+"pvccataloglocal" = "magnus_extensions.catalog.k8s_pvc.integration:LocalCompute"
+"pvccatalogcontainer" = "magnus_extensions.catalog.k8s_pvc.integration:LocalContainerCompute"
+"pvccatalogkfp" = "magnus_extensions.catalog.k8s_pvc.integration:KfpCompute"
+"pvccatalogargo" = "magnus_extensions.catalog.k8s_pvc.integration:ArgoCompute"
+# k8s-job
+"k8sjobbuffered" = "magnus_extensions.k8s_job.integration:BufferedRunLogStore"
+"k8sjobfsrunlog" = "magnus_extensions.k8s_job.integration:FileSystemRunLogStore"
+"k8sjobfschunkedfsrunlog" = "magnus_extensions.k8s_job.integration:ChunkedFSRunLogStore"
+"k8sjobffscatalog" = "magnus_extensions.k8s_job.integration:FileSystemCatalog"
 
 
 [build-system]
