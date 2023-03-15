@@ -13,7 +13,7 @@ boto3 ={ version = "*", optional = true }
 kfp = {version= "^1.8.18", optional = true }
 sqlalchemy = { version = "*", optional = true }
 kubernetes = { version = "*", optional = true }
-magnus = {extras = ["notebook"], version = "^0.4.11"}
+magnus = { version = "^0.4.11"}
 
 [tool.poetry.extras]
 aws = ["boto3"]
