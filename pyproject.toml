@@ -13,12 +13,14 @@ boto3 ={ version = "*", optional = true }
 kfp = {version= "^1.8.18", optional = true }
 sqlalchemy = { version = "*", optional = true }
 kubernetes = { version = "*", optional = true }
-magnus = { version = "^0.4.11"}
+mlflow-skinny = { version = "*", optional = true }
+magnus = { version = "^0.4.12" }
 
 [tool.poetry.extras]
 aws = ["boto3"]
 kubeflow = ["kfp"]
 k8s = ["kubernetes"]
+mlflow = ["mlflow-skinny"]
 database = ["sqlalchemy"]
 
 [tool.poetry.dev-dependencies]
@@ -53,6 +55,9 @@ python-semantic-release = "^7.33.1"
 "kfp" = "magnus_extensions.executor.kubeflow.implementation:KubeFlowExecutor"
 "argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
 "k8s-job" = "magnus_extensions.executor.k8s_job.implementation:K8sJobExecutor"
+
+[tool.poetry.plugins."experiment_tracker"]
+"mlflow" = "magnus_extensions.experiment_tracker.mlflow.implementation:MLFlowExperimentTracker"
 
 # Use this provide namespace of the integration
 # naming convention: keep it simple.
