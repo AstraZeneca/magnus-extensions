@@ -19,7 +19,7 @@ try:
                                    V1SecretKeySelector)
 except ImportError as _e:
     msg = (
-        "Kuberneters Dependencies have not been installed!!"
+        "Kubernetes Dependencies have not been installed!!"
     )
     raise Exception(msg) from _e
 
@@ -122,7 +122,7 @@ class K8sJobExecutor(BaseExecutor):
         requests = {"cpu": cpu_request, "memory": memory_request}
         resources = {"limits": limits, "requests": requests}
 
-        secret_configuration = []
+        environment_variables = []
         for secret_env, k8_secret in self.config.secrets_from_k8s.items():
             try:
                 secret_name, key = k8_secret.split(':')
@@ -133,7 +133,12 @@ class K8sJobExecutor(BaseExecutor):
                 raise Exception(msg) from _e
             secret_as_env = V1EnvVar(name=secret_env, value_from=V1EnvVarSource(
                 secret_key_ref=V1SecretKeySelector(name=secret_name, key=key)))
-            secret_configuration.append(secret_as_env)
+            environment_variables.append(secret_as_env)
+
+        overridden_params = utils.get_user_set_parameters()
+        # The parameters present in the environment override the parameters present in the parameters file
+        for k, v in overridden_params.items():
+            environment_variables.append(V1EnvVar(name=defaults.PARAMETER_PREFIX+k, value=v))
 
         pod_volumes = []
         volume_mounts = []
@@ -147,7 +152,7 @@ class K8sJobExecutor(BaseExecutor):
             image=self.config.docker_image,
             command=shlex.split(command),
             resources=resources,
-            env=secret_configuration,
+            env=environment_variables,
             image_pull_policy="Always",
             volume_mounts=volume_mounts or None
         )
