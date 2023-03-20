@@ -137,8 +137,9 @@ class K8sJobExecutor(BaseExecutor):
 
         overridden_params = utils.get_user_set_parameters()
         # The parameters present in the environment override the parameters present in the parameters file
+        # The values are coerced to be strings, hopefully they will be fine on the other side.
         for k, v in overridden_params.items():
-            environment_variables.append(V1EnvVar(name=defaults.PARAMETER_PREFIX+k, value=v))
+            environment_variables.append(V1EnvVar(name=defaults.PARAMETER_PREFIX+k, value=str(v)))
 
         pod_volumes = []
         volume_mounts = []
