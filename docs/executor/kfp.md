@@ -13,7 +13,7 @@ In general, we might prefer to transpile to Argo directly instead of going via K
 
 ## Additional dependencies
 
-Magnus extensions needs additional packages to use this extension. Please install mangus-extensions via:
+Magnus extensions needs additional packages to use this extension. Please install magnus-extensions via:
 
 ```pip install magnus_extensions[kubeflow]```
 
