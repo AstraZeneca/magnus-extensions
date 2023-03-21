@@ -59,6 +59,7 @@ nav:
   - "Executor":
       - "Kubeflow": "executor/kfp.md"
       - "Argo": "executor/argo.md"
+      - "K8s-job": "executor/k8s-job.md"
   - "Catalog":
       - "S3": "catalog/s3.md"
   # - "Secrets":
