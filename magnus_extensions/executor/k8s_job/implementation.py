@@ -1,4 +1,3 @@
-
 import logging
 import shlex
 from typing import Dict, List
@@ -7,6 +6,7 @@ from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
 from magnus.graph import Graph
 from magnus.nodes import BaseNode
+from pydantic import BaseModel
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(defaults.NAME)
@@ -18,14 +18,18 @@ try:
                                    V1PersistentVolumeClaimVolumeSource,
                                    V1SecretKeySelector)
 except ImportError as _e:
-    msg = (
-        "Kubernetes Dependencies have not been installed!!"
-    )
+    msg = "Kubernetes Dependencies have not been installed!!"
     raise Exception(msg) from _e
 
 
-class K8sJobExecutor(BaseExecutor):
+class Toleration(BaseModel):
+    effect: str
+    key: str
+    operator: str
+    value: str
 
+
+class K8sJobExecutor(BaseExecutor):
     service_name = "k8s-job"
 
     class Config(BaseExecutor.Config):
@@ -43,6 +47,8 @@ class K8sJobExecutor(BaseExecutor):
         image_pull_policy: str = "Always"
         secrets_from_k8s: dict = {}  # EnvVar=SecretName:Key
         persistent_volumes: dict = {}  # volume-name:mount_path
+        node_selector: Dict[str, str] = {}
+        tolerations: List[Toleration] = []
         labels: Dict[str, str] = {}
 
     def __init__(self, config: dict = None):
@@ -102,11 +108,15 @@ class K8sJobExecutor(BaseExecutor):
         k8s_config.load_kube_config(config_file=self.config.config_path)
         return client
 
+    @property
+    def tolerations(self):
+        return [toleration.dict() for toleration in self.config.tolerations]
+
     def execute_job(self, node: BaseNode):
         command = utils.get_job_execution_command(self, node)
-        logger.info(f'Triggering a kubernetes job with : {command}')
+        logger.info(f"Triggering a kubernetes job with : {command}")
 
-        self.config.labels['job_name'] = self.run_id
+        self.config.labels["job_name"] = self.run_id
 
         k8s_batch = self._client.BatchV1Api()
 
@@ -118,35 +128,51 @@ class K8sJobExecutor(BaseExecutor):
 
         gpu_limit = str(self.config.gpu_limit)  # Should be something like nvidia -etc
 
-        limits = {"cpu": cpu_limit, "memory": memory_limit, self.config.gpu_vendor: gpu_limit}
+        limits = {
+            "cpu": cpu_limit,
+            "memory": memory_limit,
+            self.config.gpu_vendor: gpu_limit,
+        }
         requests = {"cpu": cpu_request, "memory": memory_request}
         resources = {"limits": limits, "requests": requests}
 
         environment_variables = []
         for secret_env, k8_secret in self.config.secrets_from_k8s.items():
             try:
-                secret_name, key = k8_secret.split(':')
+                secret_name, key = k8_secret.split(":")
             except Exception as _e:
-                msg = (
-                    "K8's secret should be of format EnvVar=SecretName:Key"
-                )
+                msg = "K8's secret should be of format EnvVar=SecretName:Key"
                 raise Exception(msg) from _e
-            secret_as_env = V1EnvVar(name=secret_env, value_from=V1EnvVarSource(
-                secret_key_ref=V1SecretKeySelector(name=secret_name, key=key)))
+            secret_as_env = V1EnvVar(
+                name=secret_env,
+                value_from=V1EnvVarSource(
+                    secret_key_ref=V1SecretKeySelector(name=secret_name, key=key)
+                ),
+            )
             environment_variables.append(secret_as_env)
 
         overridden_params = utils.get_user_set_parameters()
         # The parameters present in the environment override the parameters present in the parameters file
         # The values are coerced to be strings, hopefully they will be fine on the other side.
         for k, v in overridden_params.items():
-            environment_variables.append(V1EnvVar(name=defaults.PARAMETER_PREFIX+k, value=str(v)))
+            environment_variables.append(
+                V1EnvVar(name=defaults.PARAMETER_PREFIX + k, value=str(v))
+            )
 
         pod_volumes = []
         volume_mounts = []
         for claim_name, (claim, mount_path) in self.persistent_volumes.items():
-            pod_volumes.append(self._client.V1Volume(
-                name=claim_name, persistent_volume_claim=V1PersistentVolumeClaimVolumeSource(claim_name=claim)))
-            volume_mounts.append(self._client.V1VolumeMount(name=claim_name, mount_path=mount_path))
+            pod_volumes.append(
+                self._client.V1Volume(
+                    name=claim_name,
+                    persistent_volume_claim=V1PersistentVolumeClaimVolumeSource(
+                        claim_name=claim
+                    ),
+                )
+            )
+            volume_mounts.append(
+                self._client.V1VolumeMount(name=claim_name, mount_path=mount_path)
+            )
 
         base_container = self._client.V1Container(
             name=self.run_id,
@@ -155,39 +181,58 @@ class K8sJobExecutor(BaseExecutor):
             resources=resources,
             env=environment_variables,
             image_pull_policy="Always",
-            volume_mounts=volume_mounts or None
+            volume_mounts=volume_mounts or None,
         )
 
-        pod_spec = self._client.V1PodSpec(volumes=pod_volumes or None,
-                                          restart_policy='Never',
-                                          containers=[base_container])
+        pod_spec = self._client.V1PodSpec(
+            volumes=pod_volumes or None,
+            restart_policy="Never",
+            containers=[base_container],
+            node_selector=self.config.node_selector,
+            tolerations=self.tolerations,
+        )
 
-        pod_template = self._client.V1PodTemplateSpec(metadata=client.V1ObjectMeta(
-            labels=self.config.labels, annotations={"sidecar.istio.io/inject": "false"}), spec=pod_spec)
+        pod_template = self._client.V1PodTemplateSpec(
+            metadata=client.V1ObjectMeta(
+                labels=self.config.labels,
+                annotations={"sidecar.istio.io/inject": "false"},
+            ),
+            spec=pod_spec,
+        )
 
-        job_spec = client.V1JobSpec(template=pod_template, backoff_limit=2,
-                                    ttl_seconds_after_finished=self.config.ttl_seconds_after_finished)
+        job_spec = client.V1JobSpec(
+            template=pod_template,
+            backoff_limit=2,
+            ttl_seconds_after_finished=self.config.ttl_seconds_after_finished,
+        )
         job_spec.active_deadline_seconds = self.config.active_deadline_seconds
 
         job = client.V1Job(
-            api_version='batch/v1',
-            kind='Job',
+            api_version="batch/v1",
+            kind="Job",
             metadata=client.V1ObjectMeta(name=self.run_id),
-            spec=job_spec)
+            spec=job_spec,
+        )
 
-        logger.debug(f'Submitting kubernetes job: {job}')
+        logger.debug(f"Submitting kubernetes job: {job}")
 
         try:
             response = k8s_batch.create_namespaced_job(
-                body=job, namespace=self.config.namespace, _preload_content=False, pretty=True)
-            print(f'Kubernetes job {self.run_id} created')
-            logger.debug(f'Kubernetes job response: {response}')
+                body=job,
+                namespace=self.config.namespace,
+                _preload_content=False,
+                pretty=True,
+            )
+            print(f"Kubernetes job {self.run_id} created")
+            logger.debug(f"Kubernetes job response: {response}")
         except Exception as e:
             logger.exception(e)
             raise
 
     def execute_node(self, node: BaseNode, map_variable: dict = None, **kwargs):
-        step_log = self.run_log_store.create_step_log(node.name, node._get_step_log_name(map_variable))
+        step_log = self.run_log_store.create_step_log(
+            node.name, node._get_step_log_name(map_variable)
+        )
 
         self.add_code_identities(node=node, step_log=step_log)
 
@@ -197,26 +242,28 @@ class K8sJobExecutor(BaseExecutor):
 
         super()._execute_node(node, map_variable=map_variable, **kwargs)
 
-        step_log = self.run_log_store.get_step_log(node._get_step_log_name(map_variable), self.run_id)
+        step_log = self.run_log_store.get_step_log(
+            node._get_step_log_name(map_variable), self.run_id
+        )
         if step_log.status == defaults.FAIL:
-            raise Exception(f'Step {node.name} failed')
+            raise Exception(f"Step {node.name} failed")
 
     def execute_graph(self, dag: Graph, map_variable: dict = None, **kwargs):
-        msg = (
-            "This executor is not supported to execute any graphs but only jobs (functions or notebooks)"
-        )
+        msg = "This executor is not supported to execute any graphs but only jobs (functions or notebooks)"
         raise NotImplementedError(msg)
 
-    def send_return_code(self, stage='traversal'):
+    def send_return_code(self, stage="traversal"):
         """
         Convenience function used by pipeline to send return code to the caller of the cli
 
         Raises:
             Exception: If the pipeline execution failed
         """
-        if stage != 'traversal':  # traversal does no actual execution, so return code is pointless
+        if (
+            stage != "traversal"
+        ):  # traversal does no actual execution, so return code is pointless
             run_id = self.run_id
 
             run_log = self.run_log_store.get_run_log_by_id(run_id=run_id, full=False)
             if run_log.status == defaults.FAIL:
-                raise Exception('Pipeline execution failed')
+                raise Exception("Pipeline execution failed")

@@ -12,7 +12,7 @@ repos:
         exclude: docs/assets
   # sorts imports by alphabetically and into base>packages>local
   - repo: https://github.com/PyCQA/isort
-    rev: "5.7.0"
+    rev: "5.11.5"
     hooks:
       - id: isort
   - repo: https://github.com/pre-commit/mirrors-autopep8
