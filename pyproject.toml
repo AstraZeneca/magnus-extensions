@@ -55,6 +55,7 @@ python-semantic-release = "^7.33.1"
 "kfp" = "magnus_extensions.executor.kubeflow.implementation:KubeFlowExecutor"
 "argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
 "k8s-job" = "magnus_extensions.executor.k8s_job.implementation:K8sJobExecutor"
+"slurm-job" = "magnus_extensions.executor.slurm_job.implementation:SlurmJobExecutor"
 
 [tool.poetry.plugins."experiment_tracker"]
 "mlflow" = "magnus_extensions.experiment_tracker.mlflow.implementation:MLFlowExperimentTracker"
@@ -99,6 +100,8 @@ python-semantic-release = "^7.33.1"
 "k8sjobfsrunlog" = "magnus_extensions.k8s_job.integration:FileSystemRunLogStore"
 "k8sjobfschunkedfsrunlog" = "magnus_extensions.k8s_job.integration:ChunkedFSRunLogStore"
 "k8sjobffscatalog" = "magnus_extensions.k8s_job.integration:FileSystemCatalog"
+# slurm-job
+"slurmjobbuffered" = "magnus_extensions.slurm_job.integration:BufferedRunLogStore"
 
 
 [build-system]
