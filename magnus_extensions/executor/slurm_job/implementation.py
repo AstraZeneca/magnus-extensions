@@ -18,7 +18,7 @@ class SlurmJobExecutor(BaseExecutor):
         nodes: int = 1  # 1 node
         memory: str = "2G"  # 2 GB
         time: str = "0-00:15:00"  # 15 mins
-        shell_file_name: str = "run_notebook.sh"
+        shell_file_name: str = "run_script.sh"
         # Mention any valid configuration of slurm, this over-rides the explicit values
         advanced_configurations: dict = {}
         # List of commands to execute after the SBATCH pragma
