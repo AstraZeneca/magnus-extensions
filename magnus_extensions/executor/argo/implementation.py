@@ -1,10 +1,12 @@
+import json
 import logging
 import shlex
+from collections import OrderedDict
 from typing import Any, List, Optional, Union
 
 from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
-from magnus.graph import Graph
+from magnus.graph import Graph, create_node
 from magnus.nodes import BaseNode
 from pydantic import BaseModel
 from ruamel.yaml import YAML
@@ -13,6 +15,16 @@ logger = logging.getLogger(defaults.NAME)
 
 
 class SecretEnvVar(BaseModel):
+    """
+    Renders:
+    env:
+      - name: MYSECRETPASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: my-secret
+            key: mypassword
+    """
+
     environment_variable: str
     secret_name: str
     secret_key: str
@@ -27,6 +39,13 @@ class SecretEnvVar(BaseModel):
 
 
 class EnvVar(BaseModel):
+    """
+    Renders:
+    parameters: # in arguments
+      - name: x
+        value: 3 # This is optional for workflow parameters
+    """
+
     name: str
     value: Any
 
@@ -40,11 +59,26 @@ class EnvVar(BaseModel):
 
 
 class Request(BaseModel):
+    """
+    Renders:
+    requests:
+      memory: 1G
+      cpu: 250m
+    """
+
     memory: str
     cpu: str
 
 
 class Limit(BaseModel):
+    """
+    Renders:
+    limits:
+      cpu: 250m
+      memory: 1G
+      nvidia.com/gpu: 1 # If you want a GPU
+    """
+
     memory: str
     cpu: str
     gpu: int = 0
@@ -59,62 +93,186 @@ class Limit(BaseModel):
 
 
 class VolumeMount(BaseModel):
+    """
+    Renders: in volumeMounts in templateDefaults or container
+      - mountPath: /mnt/
+        name: executor-0
+    """
+
     mountPath: str
     name: str
 
 
-class Container(BaseModel):
-    command: List[str]
-    image: str
-    limits: Limit
-    requests: Request
-    imagePullPolicy: str = "IfNotPresent"
-    retry: int = 1
-    env: List[Union[SecretEnvVar, EnvVar]] = []
+class TemplateDefaults(BaseModel):
+    """
+    Renders:
+    templateDefaults: # In the spec
+        limits:
+        cpu: 250m
+        memory: 1G
+        requests:
+        memory: 1G
+        cpu: 250m
+        imagePullPolicy: Always
+        retry: 1
+        volumeMounts:
+        - mountPath: /mnt/
+            name: executor-0
+    """
+
+    limits: Optional[Limit] = None
+    requests: Optional[Request] = None
+    imagePullPolicy: Optional[str] = "Always"
+    retry: Optional[int] = None
     volumeMounts: List[VolumeMount] = []
 
+
+class Container(TemplateDefaults):
+    """
+    Renders:
+    retry: 1
+    image:
+    command:
+    env: []
+    volumeMounts:
+        - mountPath: /mnt/
+        name: executor-0
+    """
+
+    command: List[str]
+    image: str
+    env: List[Union[SecretEnvVar, EnvVar]] = []
+
     def dict(self, *args, **kwargs) -> dict:
-        return {
-            "command": self.command,
-            "image": self.image,
-            "imagePullPolicy": self.imagePullPolicy,
-            "resources": {
-                "limits": self.limits.dict(),
-                "requests": self.requests.dict(),
-            },
-            "retryStrategy": {"limit": str(self.retry)},
-            "env": [e.dict() for e in self.env],
-            "volumeMounts": [v.dict() for v in self.volumeMounts],
-        }
+        return_value = {}
+
+        # TODO: Retry should be part of template defaults
+
+        objects = ["limits", "requests", "imagePullPolicy", "retry"]
+        for obj in objects:
+            if getattr(self, obj):
+                return_value[obj] = getattr(self, obj)
+
+        return_value["image"] = self.image
+        return_value["command"] = self.command
+        return_value["env"] = [e.dict() for e in self.env]
+        return_value["volumeMounts"] = [volume.dict() for volume in self.volumeMounts]
+
+        return return_value
+
+
+class Parameter(BaseModel):
+    name: str
+    value: Optional[str] = None
+
+    def dict(self, *args, **kwargs) -> dict:
+        rv = {}
+        rv["name"] = self.name
+        if self.value:
+            rv["value"] = self.value
+
+        return rv
+
+
+class OutputParameter(Parameter):
+    """
+    Renders:
+    - name: step-name
+      valueFrom:
+        path: /tmp/output.txt
+    """
+
+    path: str = "/tmp/output.txt"
+
+    def dict(self, *args, **kwargs) -> dict:
+        return {"name": self.name, "valueFrom": {"path": self.path}}
+
+
+class Argument(BaseModel):
+    """
+    Templates are called with arguments, which become inputs for the template
+    Renders:
+    arguments:
+      parameters:
+        - name: The name of the parameter
+          value: The value of the parameter
+    """
+
+    name: str
+    value: str
 
 
 class TaskTemplate(BaseModel):
+    """
+    dag:
+        tasks:
+          name: A
+            template: nested-diamond
+            arguments:
+                parameters: [{name: message, value: A}]
+    """
+
     name: str
     template: str
     depends: List[str] = []
+    inputs: List[Parameter] = []
+    arguments: List[Argument] = []
+    with_param: Optional[str] = None  # If the
 
     def dict(self, *args, **kwargs) -> dict:
-        return {
+        rv = {
             "name": self.name,
             "template": self.template,
             "depends": " || ".join(self.depends),
         }
+        if self.arguments:
+            rv["arguments"] = {"parameters": [arg.dict() for arg in self.arguments]}
+
+        if self.with_param:
+            rv["withParam"] = self.with_param
+
+        if self.inputs:
+            rv["inputs"] = {"inputs": [param.dict() for param in self.inputs]}
+
+        return rv
 
 
 class ContainerTemplate(BaseModel):
+    # These templates are used for actual execution nodes.
     name: str
     container: Container
+    outputs: List[OutputParameter] = []
+    inputs: List[Parameter] = []
+
+    def dict(self, *args, **kwargs) -> dict:
+        rv = {"name": self.name, "container": self.container.dict()}
+
+        if self.outputs:
+            rv["outputs"] = {"parameters": [param.dict() for param in self.outputs]}
+
+        if self.inputs:
+            rv["inputs"] = {"parameters": [param.dict() for param in self.inputs]}
+
+        return rv
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 class DagTemplate(BaseModel):
     name: str = "magnus-dag"
     tasks: List[TaskTemplate] = []
+    inputs: List[Parameter] = []
 
     def dict(self, *args, **kwargs):
-        return {
+        rv = {
             "name": self.name,
             "dag": {"tasks": [task.dict() for task in self.tasks]},
         }
+        if self.inputs:
+            rv["inputs"] = {"parameters": [param.dict() for param in self.inputs]}
+
+        return rv
 
 
 class Volume(BaseModel):
@@ -127,19 +285,28 @@ class Volume(BaseModel):
 
 class Spec(BaseModel):
     entrypoint: str = "magnus-dag"
-    templates: Union[DagTemplate, ContainerTemplate] = []
+    templates: Optional[DagTemplate] = []
     serviceAccountName: str = "pipeline-runner"
     arguments: List[EnvVar] = []
     volumes: List[Volume] = []
+    parallelism: int = 0
+    templateDefaults: TemplateDefaults = None
 
     def dict(self, *args, **kwargs):
-        return {
+        return_value = {
             "entrypoint": self.entrypoint,
             "volumes": [v.dict() for v in self.volumes],
             "templates": [template.dict() for template in self.templates],
             "serviceAccountName": self.serviceAccountName,
             "arguments": {"parameters": [env.dict() for env in self.arguments]},
         }
+        if self.parallelism:
+            return_value["parallelism"] = self.parallelism
+
+        if self.templateDefaults:
+            return_value["templateDefaults"] = self.templateDefaults.dict()
+
+        return return_value
 
 
 class WorkSpec(BaseModel):
@@ -149,31 +316,201 @@ class WorkSpec(BaseModel):
     spec: Optional[Spec]
 
 
+class NodeRenderer:
+    allowed_node_types: List[str] = []
+
+    def __init__(self, executor: BaseExecutor, node: BaseNode) -> None:
+        self.executor = executor
+        self.node = node
+
+    def render(self, list_of_iter_values: List = None):
+        pass
+
+
+class ExecutionNode(NodeRenderer):
+    allowed_node_types = ["task", "as-is", "success", "fail"]
+
+    def render(self, list_of_iter_values: List = None):
+        map_variable = self.executor.compose_map_variable(list_of_iter_values)
+        command = utils.get_node_execution_command(
+            self.executor,
+            self.node,
+            over_write_run_id=self.executor.run_id_placeholder,
+            map_variable=map_variable,
+        )
+
+        # Create the container template
+        container_template = self.executor.create_container_template(
+            working_on=self.node,
+            command=command,
+            inputs=list_of_iter_values,
+        )
+
+        self.executor.container_templates.append(container_template)
+
+
+class DagNode(NodeRenderer):
+    allowed_node_types = ["dag"]
+
+    def render(self, list_of_iter_values: List = None):
+        clean_name = self.executor.get_clean_name(self.node.internal_name)
+        fan_out_template = self.executor._create_fan_out_template(
+            composite_node=self.node, list_of_iter_values=list_of_iter_values
+        )
+        fan_in_template = self.executor._create_fan_in_template(
+            composite_node=self.node, list_of_iter_values=list_of_iter_values
+        )
+
+        self.executor._gather_task_templates_of_dag(
+            self.node.branch,
+            dag_name=f"{clean_name}-branch",
+            list_of_iter_values=list_of_iter_values,
+        )
+
+        branch_template = TaskTemplate(
+            name=f"{clean_name}-branch", template=f"{clean_name}-branch"
+        )
+        branch_template.depends.append(f"{clean_name}-fan-out.Succeeded")
+        fan_in_template.depends.append(f"{clean_name}-branch.Succeeded")
+        fan_in_template.depends.append(f"{clean_name}-branch.Failed")
+
+        self.executor.templates.append(
+            DagTemplate(
+                tasks=[fan_out_template, branch_template, fan_in_template],
+                name=clean_name,
+            )
+        )
+
+
+class ParallelNode(NodeRenderer):
+    allowed_node_types = ["parallel"]
+
+    def render(self, list_of_iter_values: List = None):
+        clean_name = self.executor.get_clean_name(self.node.internal_name)
+        fan_out_template = self.executor._create_fan_out_template(
+            composite_node=self.node, list_of_iter_values=list_of_iter_values
+        )
+        fan_in_template = self.executor._create_fan_in_template(
+            composite_node=self.node, list_of_iter_values=list_of_iter_values
+        )
+
+        branch_templates = []
+        for name, branch in self.node.branches.items():
+            branch_name = self.executor.get_clean_name(name)
+            self.executor._gather_task_templates_of_dag(
+                branch,
+                dag_name=f"{clean_name}-{branch_name}",
+                list_of_iter_values=list_of_iter_values,
+            )
+            task_template = TaskTemplate(
+                name=f"{clean_name}-{branch_name}",
+                template=f"{clean_name}-{branch_name}",
+            )
+            task_template.depends.append(f"{clean_name}-fan-out.Succeeded")
+            fan_in_template.depends.append(f"{task_template.name}.Succeeded")
+            fan_in_template.depends.append(f"{task_template.name}.Failed")
+            branch_templates.append(task_template)
+
+        self.executor.templates.append(
+            DagTemplate(
+                tasks=[fan_out_template] + branch_templates + [fan_in_template],
+                name=clean_name,
+            )
+        )
+
+
+class MapNode(NodeRenderer):
+    allowed_node_types = ["map"]
+
+    def render(self, list_of_iter_values: List = None):
+        clean_name = self.executor.get_clean_name(self.node.internal_name)
+        fan_out_template = self.executor._create_fan_out_template(
+            composite_node=self.node, list_of_iter_values=list_of_iter_values
+        )
+        fan_in_template = self.executor._create_fan_in_template(
+            composite_node=self.node, list_of_iter_values=list_of_iter_values
+        )
+
+        if not list_of_iter_values:
+            list_of_iter_values = []
+
+        list_of_iter_values.append(self.node.iterate_as)
+
+        self.executor._gather_task_templates_of_dag(
+            self.node.branch,
+            dag_name=f"{clean_name}-map",
+            list_of_iter_values=list_of_iter_values,
+        )
+
+        task_template = TaskTemplate(
+            name=f"{clean_name}-map", template=f"{clean_name}-map"
+        )
+        task_template.with_param = (
+            "{{tasks."
+            + f"{clean_name}-fan-out"
+            + ".outputs.parameters."
+            + "iterate-on"
+            + "}}"
+        )
+
+        argument = Argument(name=self.node.iterate_as, value="{{item}}")
+        task_template.arguments.append(argument)
+
+        task_template.depends.append(f"{clean_name}-fan-out.Succeeded")
+        fan_in_template.depends.append(f"{clean_name}-map.Succeeded")
+        fan_in_template.depends.append(f"{clean_name}-map.Failed")
+
+        self.executor.templates.append(
+            DagTemplate(
+                tasks=[fan_out_template, task_template, fan_in_template],
+                name=clean_name,
+            )
+        )
+
+
+def get_renderer(node):
+    renderers = NodeRenderer.__subclasses__()
+
+    for renderer in renderers:
+        if node.node_type in renderer.allowed_node_types:
+            return renderer
+    raise Exception("This node type is not render-able")
+
+
 class ArgoExecutor(BaseExecutor):
     service_name = "argo"
     run_id_placeholder = "{{workflow.parameters.run_id}}"
 
     class Config(BaseExecutor.Config):
         docker_image: str
-        output_file: str = "pipeline.yaml"
+        output_file: str = "argo-pipeline.yaml"
         cpu_limit: str = "250m"
         memory_limit: str = "1G"
         cpu_request: str = ""
         memory_request: str = ""
         gpu_limit: int = 0
+        parallelism: int = 0
         enable_caching: bool = False
         image_pull_policy: str = "Always"
         secrets_from_k8s: dict = {}  # EnvVar=SecretName:Key
-        persistent_volumes: dict = {}  # volume-name:mount_path
+        # volume-name:mount_path, not available in executor_config
+        persistent_volumes: dict = {}
+        # TODO: Tolerations and node selectors should be added
 
     def __init__(self, config: dict = None):
         super().__init__(config)
+
         self.persistent_volumes = {}
+        self.volume_mounts: List[VolumeMount] = []
 
         for i, (volume_name, mount_path) in enumerate(
             self.config.persistent_volumes.items()
         ):
             self.persistent_volumes[f"executor-{i}"] = (volume_name, mount_path)
+
+        self.container_templates: List[ContainerTemplate] = []
+        self.templates: List[DagTemplate] = []
+        self.template_defaults: Optional[TemplateDefaults] = None
 
     def prepare_for_graph_execution(self):
         """
@@ -252,6 +589,38 @@ class ArgoExecutor(BaseExecutor):
         if step_log.status == defaults.FAIL:
             raise Exception(f"Step {node.name} failed")
 
+    def fan_out(self, node: BaseNode, map_variable: dict):
+        # TODO: Move to core
+        step_log = self.run_log_store.create_step_log(
+            node.name, node._get_step_log_name(map_variable=map_variable)
+        )
+
+        self.add_code_identities(node=node, step_log=step_log)
+
+        step_log.step_type = node.node_type
+        step_log.status = defaults.PROCESSING
+        self.run_log_store.add_step_log(step_log, self.run_id)
+
+        node.fan_out(executor=self, map_variable=map_variable)
+
+        # If its a map node, write the list values to "/tmp/magnus/output.txt"
+        if node.node_type == "map":
+            iterate_on = self.run_log_store.get_parameters(self.run_id)[node.iterate_on]
+
+            with open("/tmp/output.txt", mode="w", encoding="utf-8") as myfile:
+                json.dump(iterate_on, myfile, indent=4)
+
+    def fan_in(self, node: BaseNode, map_variable: dict):
+        # TODO: Move to core
+        node.fan_in(executor=self, map_variable=map_variable)
+
+        step_log = self.run_log_store.get_step_log(
+            node._get_step_log_name(), self.run_id
+        )
+
+        if step_log.status == defaults.FAIL:
+            raise Exception(f"Step {node.name} failed")
+
     def get_parameters(self):
         parameters = utils.get_user_set_parameters()
         if self.parameters_file:
@@ -259,10 +628,34 @@ class ArgoExecutor(BaseExecutor):
         return parameters
 
     def get_clean_name(self, node_name: str):
-        return node_name.replace(" ", "-")
+        return node_name.replace(" ", "-").replace(".", "-").replace("_", "-")
+
+    def compose_map_variable(
+        self, list_of_iter_values: Optional[List] = None
+    ) -> OrderedDict:
+        map_variable = OrderedDict()
+
+        # If we are inside a map node, compose a map_variable
+        # The values of "iterate_as" are sent over as inputs to the container template
+        if list_of_iter_values:
+            for var in list_of_iter_values:
+                map_variable[var] = "{{inputs.parameters." + str(var) + "}}"
+
+        return map_variable
+
+    def get_value_if_different_from_default(self, key, value):
+        default_value = getattr(self.template_defaults, key)
+        if default_value == value:
+            return None
+        return value
 
     def create_container_template(
-        self, working_on: BaseNode, command: str, add_parameters: bool = False
+        self,
+        working_on: BaseNode,
+        command: str,
+        add_parameters: bool = False,
+        inputs: List = None,
+        outputs: List = None,
     ):
         command = shlex.split(command)
         mode_config = self._resolve_executor_config(working_on)
@@ -282,20 +675,28 @@ class ArgoExecutor(BaseExecutor):
 
         gpu_limit = mode_config.get("gpu_limit", self.config.gpu_limit)
 
-        request = Request(memory=memory_request, cpu=cpu_request)
-        limits = Limit(memory=memory_limit, cpu=cpu_limit, gpu=gpu_limit)
+        requests = Request(memory=memory_request, cpu=cpu_request)
+        requests = self.get_value_if_different_from_default("requests", requests)
 
-        image_pull_policy = mode_config.get(
-            "image_pull_policy", self.config.image_pull_policy
+        limits = Limit(memory=memory_limit, cpu=cpu_limit, gpu=gpu_limit)
+        limits = self.get_value_if_different_from_default("limits", limits)
+
+        image_pull_policy = self.get_value_if_different_from_default(
+            "imagePullPolicy",
+            mode_config.get("image_pull_policy", self.config.image_pull_policy),
+        )
+
+        retry = self.get_value_if_different_from_default(
+            "retry", working_on._get_max_attempts()
         )
 
         container = Container(
             command=command,
             image=docker_image,
             limits=limits,
-            requests=request,
+            requests=requests,
             imagePullPolicy=image_pull_policy,
-            retry=working_on._get_max_attempts(),
+            retry=retry,
         )
         for secret_env, k8_secret in secrets.items():
             try:
@@ -311,67 +712,187 @@ class ArgoExecutor(BaseExecutor):
         if (
             add_parameters or working_on.name == self.dag.start_at
         ):  # short circuit when forcing to add parameters
-            for key, _ in self.get_parameters().items():
+            for key, value in self.get_parameters().items():
                 # Get the value from work flow parameters for dynamic behavior
+                if isinstance(value, dict) or isinstance(value, list):
+                    continue
                 env_var = EnvVar(
                     name=defaults.PARAMETER_PREFIX + key,
                     value="{{workflow.parameters." + key + "}}",
                 )
                 container.env.append(env_var)
 
-        visited_claims = {}
-        for volume_name, claim in self.persistent_volumes.items():
-            claim_name, mount_path = claim
-
-            # If the volume is already mounted, we cannot mount it again.
-            if claim_name in visited_claims:
-                msg = "The same persistent volume claim has already been used in the pipeline by another service"
-                raise Exception(msg)
-            visited_claims[claim_name] = claim_name
-
-            container.volumeMounts.append(
-                VolumeMount(name=volume_name, mountPath=mount_path)
-            )
+        # Add the volume mounts to the container
+        container.volumeMounts = self.volume_mounts
 
         container_template = ContainerTemplate(
-            name=self.get_clean_name(working_on.name), container=container
+            name=self.get_clean_name(working_on.internal_name), container=container
         )
+
+        # inputs are the "iterate_as" value map variables in the same order as they are observed
+        # We need to expose the map variables in the command of the container
+        if inputs:
+            for _input in inputs:
+                input_parameter = Parameter(name=_input)
+                container_template.inputs.append(input_parameter)
+
+        # The map step fan out would create an output that we should propagate via Argo
+        if outputs:
+            for output in outputs:
+                container_template.outputs.append(output)
 
         return container_template
 
-    def get_templates(self, dag):
+    def _create_fan_out_template(
+        self, composite_node, list_of_iter_values: List = None
+    ):
+        # TODO: Move to core
+        clean_name = self.get_clean_name(composite_node.internal_name)
+        command = (
+            f"magnus fan {self.run_id_placeholder} "
+            f"{composite_node._command_friendly_name()} "
+            "--mode out "
+            f"--file {self.pipeline_file} "
+            f"--config-file {self.configuration_file} "
+            f"--parameters-file {self.parameters_file} "
+            f"--log-level {logging.getLevelName(logger.getEffectiveLevel())} "
+            f"--tag {self.tag}"
+        )
+
+        inputs = []
+        # If we are fanning out already map state, we need to send the map variable inside
+        # The container template also should be accepting an input parameter
+        if list_of_iter_values:
+            map_variable = self.compose_map_variable(
+                list_of_iter_values=list_of_iter_values
+            )
+            command = command + f" --map-variable '{json.dumps(map_variable)}'"
+
+            for val in list_of_iter_values:
+                inputs.append(Parameter(name=val))
+
+        outputs = []
+        # If the node is a map node, we have to set the output parameters
+        # Output is always the step's internal name + iterate-on
+        if composite_node.node_type == "map":
+            output_parameter = OutputParameter(name="iterate-on")
+            outputs.append(output_parameter)
+
+        # Create the node now
+        step_config = {"command": command, "type": "task", "next": "dummy"}
+        node = create_node(
+            name=f"{composite_node.internal_name}-fan-out", step_config=step_config
+        )
+
+        container_template = self.create_container_template(
+            working_on=node, command=command, outputs=outputs, inputs=inputs
+        )
+
+        self.container_templates.append(container_template)
+        return TaskTemplate(
+            name=f"{clean_name}-fan-out", template=f"{clean_name}-fan-out"
+        )
+
+    def _create_fan_in_template(self, composite_node, list_of_iter_values: List = None):
+        # TODO: Move to core
+        command = (
+            f"magnus fan {self.run_id_placeholder} "
+            f"{composite_node._command_friendly_name()} "
+            "--mode in "
+            f"--file {self.pipeline_file} "
+            f"--config-file {self.configuration_file} "
+            f"--parameters-file {self.parameters_file} "
+            f"--log-level {logging.getLevelName(logger.getEffectiveLevel())} "
+            f"--tag {self.tag}"
+        )
+        inputs = []
+        # If we are fanning in already map state, we need to send the map variable inside
+        # The container template also should be accepting an input parameter
+        if list_of_iter_values:
+            map_variable = self.compose_map_variable(
+                list_of_iter_values=list_of_iter_values
+            )
+            command = command + f" --map-variable '{json.dumps(map_variable)}'"
+
+            for val in list_of_iter_values:
+                inputs.append(Parameter(name=val))
+
+        step_config = {"command": command, "type": "task", "next": "dummy"}
+        node = create_node(
+            name=f"{composite_node.internal_name}-fan-in", step_config=step_config
+        )
+        container_template = self.create_container_template(
+            working_on=node, command=command, inputs=inputs
+        )
+        self.container_templates.append(container_template)
+        clean_name = self.get_clean_name(composite_node.internal_name)
+        return TaskTemplate(
+            name=f"{clean_name}-fan-in", template=f"{clean_name}-fan-in"
+        )
+
+    def _gather_task_templates_of_dag(
+        self, dag: Graph, dag_name="magnus-dag", list_of_iter_values: List = None
+    ):
         current_node = dag.start_at
         previous_node = None
 
-        container_templates = {}
-        task_templates = {}
+        templates: dict[str, TaskTemplate] = {}
         while True:
             working_on = dag.get_node_by_name(current_node)
-            if working_on.is_composite:
-                raise NotImplementedError("Composite nodes are not yet implemented")
-
             if previous_node == current_node:
                 raise Exception("Potentially running in a infinite loop")
 
-            command = utils.get_node_execution_command(
-                self, working_on, over_write_run_id=self.run_id_placeholder
-            )
-            container_template = self.create_container_template(
-                working_on=working_on, command=command
+            render_obj = get_renderer(working_on)(executor=self, node=working_on)
+            render_obj.render(list_of_iter_values=list_of_iter_values)
+
+            clean_name = self.get_clean_name(working_on.internal_name)
+
+            # If a task template for clean name exists, retrieve it (could have been created by on_failure)
+            template = templates.get(
+                clean_name, TaskTemplate(name=clean_name, template=clean_name)
             )
 
-            if current_node not in container_templates:
-                container_templates[current_node] = container_template
-
-            clean_name = self.get_clean_name(working_on.name)
-            task_template = TaskTemplate(name=clean_name, template=clean_name)
+            # Link the current node to previous node, if the previous node was successful.
             if previous_node:
-                task_template.depends.append(
-                    f"{self.get_clean_name(previous_node)}.Succeeded"
+                previous_node_template_name = previous_node
+                if dag.internal_branch_name:
+                    previous_node_template_name = (
+                        dag.internal_branch_name + "." + previous_node
+                    )
+
+                template.depends.append(
+                    f"{self.get_clean_name(previous_node_template_name)}.Succeeded"
                 )
 
-            task_templates[current_node] = task_template
+            templates[clean_name] = template
 
+            # On failure nodes
+            if working_on._get_on_failure_node():
+                failure_node = working_on._get_on_failure_node()
+
+                if dag.internal_branch_name:
+                    failure_node = dag.internal_branch_name + "." + failure_node
+
+                clean_name = self.get_clean_name(failure_node)
+                # If a task template for clean name exists, retrieve it
+                template = templates.get(
+                    clean_name, TaskTemplate(name=clean_name, template=clean_name)
+                )
+                template.depends.append(f"{self.get_clean_name(current_node)}.Failed")
+
+                templates[clean_name] = template
+
+            # If we are in a map node, we need to add the values as arguments
+            template = templates[clean_name]
+            if list_of_iter_values:
+                for value in list_of_iter_values:
+                    template.arguments.append(
+                        Parameter(
+                            name=value, value="{{inputs.parameters." + value + "}}"
+                        )
+                    )
+
+            # Move ahead to the next node
             previous_node = current_node
 
             if working_on.node_type in ["success", "fail"]:
@@ -379,12 +900,19 @@ class ArgoExecutor(BaseExecutor):
 
             current_node = working_on._get_next_node()
 
-        return [template for _, template in container_templates.items()], [
-            template for _, template in task_templates.items()
-        ]
+        # Add the iteration values as input to dag template
+        dag_template = DagTemplate(tasks=list(templates.values()), name=dag_name)
+        if list_of_iter_values:
+            dag_template.inputs.extend(
+                [Parameter(name=val) for val in list_of_iter_values]
+            )
 
-    def add_volumes_to_specification(self, specification: Spec):
+        # Add the dag template to the list of templates
+        self.templates.append(dag_template)
+
+    def _add_volumes_to_specification(self, specification: Spec):
         visited_claims = {}
+
         for volume_name, claim in self.persistent_volumes.items():
             claim_name, mount_path = claim
 
@@ -394,6 +922,28 @@ class ArgoExecutor(BaseExecutor):
                 raise Exception(msg)
             visited_claims[claim_name] = claim_name
             specification.volumes.append(Volume(name=volume_name, claim=claim_name))
+            self.volume_mounts.append(
+                VolumeMount(name=volume_name, mountPath=mount_path)
+            )
+
+    def _fill_template_defaults(self):
+        cpu_limit = self.config.cpu_limit
+        memory_limit = self.config.memory_limit
+
+        cpu_request = cpu_limit
+        memory_request = memory_limit
+
+        gpu_limit = self.config.gpu_limit
+
+        request = Request(memory=memory_request, cpu=cpu_request)
+        limits = Limit(memory=memory_limit, cpu=cpu_limit, gpu=gpu_limit)
+
+        self.template_defaults = TemplateDefaults(
+            limits=limits,
+            requests=request,
+            imagePullPolicy=self.config.image_pull_policy,
+            volumeMounts=self.volume_mounts,
+        )
 
     def execute_graph(self, dag: Graph, map_variable: dict = None, **kwargs):
         workspec = WorkSpec()
@@ -408,24 +958,39 @@ class ArgoExecutor(BaseExecutor):
         run_id_var = EnvVar(name="run_id", value="{{workflow.uid}}")
         specification.arguments.append(run_id_var)
 
-        # Add volumes to specification
-        self.add_volumes_to_specification(specification)
+        if self.config.parallelism:
+            specification.parallelism = self.config.parallelism
 
-        container_templates, task_templates = self.get_templates(dag=dag)
-        specification.templates.extend(container_templates)
-        dag_template = DagTemplate(tasks=task_templates)
-        specification.templates.extend([dag_template])
+        # Add volumes to specification
+        self._add_volumes_to_specification(specification)
+
+        # Fill in the template defaults
+        self._fill_template_defaults()
+        specification.templateDefaults = self.template_defaults
+
+        # Container specifications are globally collected and added at the end.
+        # Dag specifications are added as part of the dag traversal.
+        self._gather_task_templates_of_dag(dag=dag, list_of_iter_values=[])
+        specification.templates.extend(self.templates)
+        specification.templates.extend(self.container_templates)
+
         yaml = YAML()
         with open(self.config.output_file, "w") as f:
             yaml.dump(workspec.dict(), f)
 
     def execute_job(self, node: BaseNode):
+        """
+        This is not the best use of this executor but it works!!
+        """
         workspec = WorkSpec()
         specification = Spec()
         workspec.spec = specification
 
         for key, value in self.get_parameters().items():
             # Get the value from work flow parameters for dynamic behavior
+            if isinstance(value, List) or isinstance(value, dict):
+                # Do not do this for complex data types as they cannot be sent via UI
+                continue
             env_var = EnvVar(name=key, value=value)
             specification.arguments.append(env_var)
 
@@ -433,7 +998,7 @@ class ArgoExecutor(BaseExecutor):
         specification.arguments.append(run_id_var)
 
         # Add volumes to specification
-        self.add_volumes_to_specification(specification)
+        self._add_volumes_to_specification(specification)
 
         command = utils.get_job_execution_command(
             self, node, over_write_run_id=self.run_id_placeholder
@@ -443,10 +1008,10 @@ class ArgoExecutor(BaseExecutor):
         )
 
         clean_name = self.get_clean_name(node.name)
-        task_template = TaskTemplate(name=clean_name, template=clean_name)
+        template = DagTemplate(name=clean_name, template=clean_name)
 
         specification.templates.extend([container_template])
-        dag_template = DagTemplate(tasks=[task_template])
+        dag_template = DagTemplate(tasks=[template])
         specification.templates.extend([dag_template])
         yaml = YAML()
         with open(self.config.output_file, "w") as f:
