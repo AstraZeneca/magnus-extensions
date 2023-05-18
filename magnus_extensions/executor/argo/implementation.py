@@ -1,6 +1,8 @@
 import json
 import logging
+import random
 import shlex
+import string
 from collections import OrderedDict
 from typing import Any, List, Optional, Union
 
@@ -331,6 +333,11 @@ class ExecutionNode(NodeRenderer):
     allowed_node_types = ["task", "as-is", "success", "fail"]
 
     def render(self, list_of_iter_values: List = None):
+        """
+        Compose the map variable and create the execution command.
+        Create an input to the command.
+        create_container_template : creates an argument for the list of iter values
+        """
         map_variable = self.executor.compose_map_variable(list_of_iter_values)
         command = utils.get_node_execution_command(
             self.executor,
@@ -339,11 +346,16 @@ class ExecutionNode(NodeRenderer):
             map_variable=map_variable,
         )
 
+        inputs = []
+        if list_of_iter_values:
+            for val in list_of_iter_values:
+                inputs.append(Parameter(name=val))
+
         # Create the container template
         container_template = self.executor.create_container_template(
             working_on=self.node,
             command=command,
-            inputs=list_of_iter_values,
+            inputs=inputs,
         )
 
         self.executor.container_templates.append(container_template)
@@ -353,7 +365,14 @@ class DagNode(NodeRenderer):
     allowed_node_types = ["dag"]
 
     def render(self, list_of_iter_values: List = None):
-        clean_name = self.executor.get_clean_name(self.node.internal_name)
+        arguments = []
+        if list_of_iter_values:
+            for value in list_of_iter_values:
+                arguments.append(
+                    Parameter(name=value, value="{{inputs.parameters." + value + "}}")
+                )
+
+        clean_name = self.executor.get_clean_name(self.node)
         fan_out_template = self.executor._create_fan_out_template(
             composite_node=self.node, list_of_iter_values=list_of_iter_values
         )
@@ -368,16 +387,24 @@ class DagNode(NodeRenderer):
         )
 
         branch_template = TaskTemplate(
-            name=f"{clean_name}-branch", template=f"{clean_name}-branch"
+            name=f"{clean_name}-branch",
+            template=f"{clean_name}-branch",
+            arguments=arguments,
         )
         branch_template.depends.append(f"{clean_name}-fan-out.Succeeded")
         fan_in_template.depends.append(f"{clean_name}-branch.Succeeded")
         fan_in_template.depends.append(f"{clean_name}-branch.Failed")
 
+        inputs = []
+        if list_of_iter_values:
+            for val in list_of_iter_values:
+                inputs.append(Parameter(name=val))
+
         self.executor.templates.append(
             DagTemplate(
                 tasks=[fan_out_template, branch_template, fan_in_template],
                 name=clean_name,
+                inputs=inputs,
             )
         )
 
@@ -386,17 +413,27 @@ class ParallelNode(NodeRenderer):
     allowed_node_types = ["parallel"]
 
     def render(self, list_of_iter_values: List = None):
-        clean_name = self.executor.get_clean_name(self.node.internal_name)
+        arguments = []
+        if list_of_iter_values:
+            for value in list_of_iter_values:
+                arguments.append(
+                    Parameter(name=value, value="{{inputs.parameters." + value + "}}")
+                )
+
+        clean_name = self.executor.get_clean_name(self.node)
         fan_out_template = self.executor._create_fan_out_template(
             composite_node=self.node, list_of_iter_values=list_of_iter_values
         )
+        fan_out_template.arguments = arguments
+
         fan_in_template = self.executor._create_fan_in_template(
             composite_node=self.node, list_of_iter_values=list_of_iter_values
         )
+        fan_in_template.arguments = arguments
 
         branch_templates = []
         for name, branch in self.node.branches.items():
-            branch_name = self.executor.get_clean_name(name)
+            branch_name = self.executor.sanitize_name(name)
             self.executor._gather_task_templates_of_dag(
                 branch,
                 dag_name=f"{clean_name}-{branch_name}",
@@ -405,16 +442,23 @@ class ParallelNode(NodeRenderer):
             task_template = TaskTemplate(
                 name=f"{clean_name}-{branch_name}",
                 template=f"{clean_name}-{branch_name}",
+                arguments=arguments,
             )
             task_template.depends.append(f"{clean_name}-fan-out.Succeeded")
             fan_in_template.depends.append(f"{task_template.name}.Succeeded")
             fan_in_template.depends.append(f"{task_template.name}.Failed")
             branch_templates.append(task_template)
 
+        inputs = []
+        if list_of_iter_values:
+            for val in list_of_iter_values:
+                inputs.append(Parameter(name=val))
+
         self.executor.templates.append(
             DagTemplate(
                 tasks=[fan_out_template] + branch_templates + [fan_in_template],
                 name=clean_name,
+                inputs=inputs,
             )
         )
 
@@ -423,13 +467,28 @@ class MapNode(NodeRenderer):
     allowed_node_types = ["map"]
 
     def render(self, list_of_iter_values: List = None):
-        clean_name = self.executor.get_clean_name(self.node.internal_name)
+        arguments = []
+        if list_of_iter_values:
+            for value in list_of_iter_values:
+                arguments.append(
+                    Parameter(name=value, value="{{inputs.parameters." + value + "}}")
+                )
+
+        clean_name = self.executor.get_clean_name(self.node)
         fan_out_template = self.executor._create_fan_out_template(
             composite_node=self.node, list_of_iter_values=list_of_iter_values
         )
+        fan_out_template.arguments = arguments
+
         fan_in_template = self.executor._create_fan_in_template(
             composite_node=self.node, list_of_iter_values=list_of_iter_values
         )
+        fan_in_template.arguments = arguments
+
+        inputs = []
+        if list_of_iter_values:
+            for val in list_of_iter_values:
+                inputs.append(Parameter(name=val))
 
         if not list_of_iter_values:
             list_of_iter_values = []
@@ -443,7 +502,7 @@ class MapNode(NodeRenderer):
         )
 
         task_template = TaskTemplate(
-            name=f"{clean_name}-map", template=f"{clean_name}-map"
+            name=f"{clean_name}-map", template=f"{clean_name}-map", arguments=arguments
         )
         task_template.with_param = (
             "{{tasks."
@@ -464,6 +523,7 @@ class MapNode(NodeRenderer):
             DagTemplate(
                 tasks=[fan_out_template, task_template, fan_in_template],
                 name=clean_name,
+                inputs=inputs,
             )
         )
 
@@ -511,6 +571,7 @@ class ArgoExecutor(BaseExecutor):
         self.container_templates: List[ContainerTemplate] = []
         self.templates: List[DagTemplate] = []
         self.template_defaults: Optional[TemplateDefaults] = None
+        self.clean_names: dict = {}
 
     def prepare_for_graph_execution(self):
         """
@@ -627,8 +688,17 @@ class ArgoExecutor(BaseExecutor):
             parameters.update(utils.load_yaml(self.parameters_file))
         return parameters
 
-    def get_clean_name(self, node_name: str):
-        return node_name.replace(" ", "-").replace(".", "-").replace("_", "-")
+    def sanitize_name(self, name):
+        return name.replace(" ", "-").replace(".", "-").replace("_", "-")
+
+    def get_clean_name(self, node: BaseNode):
+        # Cache names for the node
+        if node.internal_name not in self.clean_names:
+            sanitized = self.sanitize_name(node.name)
+            tag = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+            self.clean_names[node.internal_name] = f"{sanitized}-{node.node_type}-{tag}"
+
+        return self.clean_names[node.internal_name]
 
     def compose_map_variable(
         self, list_of_iter_values: Optional[List] = None
@@ -656,6 +726,7 @@ class ArgoExecutor(BaseExecutor):
         add_parameters: bool = False,
         inputs: List = None,
         outputs: List = None,
+        overwrite_name: str = "",
     ):
         command = shlex.split(command)
         mode_config = self._resolve_executor_config(working_on)
@@ -725,21 +796,20 @@ class ArgoExecutor(BaseExecutor):
         # Add the volume mounts to the container
         container.volumeMounts = self.volume_mounts
 
-        container_template = ContainerTemplate(
-            name=self.get_clean_name(working_on.internal_name), container=container
-        )
+        clean_name = self.get_clean_name(working_on)
+        if overwrite_name:
+            clean_name = overwrite_name
+
+        container_template = ContainerTemplate(name=clean_name, container=container)
 
         # inputs are the "iterate_as" value map variables in the same order as they are observed
         # We need to expose the map variables in the command of the container
         if inputs:
-            for _input in inputs:
-                input_parameter = Parameter(name=_input)
-                container_template.inputs.append(input_parameter)
+            container_template.inputs.extend(inputs)
 
         # The map step fan out would create an output that we should propagate via Argo
         if outputs:
-            for output in outputs:
-                container_template.outputs.append(output)
+            container_template.outputs.extend(outputs)
 
         return container_template
 
@@ -747,7 +817,7 @@ class ArgoExecutor(BaseExecutor):
         self, composite_node, list_of_iter_values: List = None
     ):
         # TODO: Move to core
-        clean_name = self.get_clean_name(composite_node.internal_name)
+        clean_name = self.get_clean_name(composite_node)
         command = (
             f"magnus fan {self.run_id_placeholder} "
             f"{composite_node._command_friendly_name()} "
@@ -785,7 +855,11 @@ class ArgoExecutor(BaseExecutor):
         )
 
         container_template = self.create_container_template(
-            working_on=node, command=command, outputs=outputs, inputs=inputs
+            working_on=node,
+            command=command,
+            outputs=outputs,
+            inputs=inputs,
+            overwrite_name=f"{clean_name}-fan-out",
         )
 
         self.container_templates.append(container_template)
@@ -795,6 +869,7 @@ class ArgoExecutor(BaseExecutor):
 
     def _create_fan_in_template(self, composite_node, list_of_iter_values: List = None):
         # TODO: Move to core
+        clean_name = self.get_clean_name(composite_node)
         command = (
             f"magnus fan {self.run_id_placeholder} "
             f"{composite_node._command_friendly_name()} "
@@ -822,10 +897,13 @@ class ArgoExecutor(BaseExecutor):
             name=f"{composite_node.internal_name}-fan-in", step_config=step_config
         )
         container_template = self.create_container_template(
-            working_on=node, command=command, inputs=inputs
+            working_on=node,
+            command=command,
+            inputs=inputs,
+            overwrite_name=f"{clean_name}-fan-in",
         )
         self.container_templates.append(container_template)
-        clean_name = self.get_clean_name(composite_node.internal_name)
+        clean_name = self.get_clean_name(composite_node)
         return TaskTemplate(
             name=f"{clean_name}-fan-in", template=f"{clean_name}-fan-in"
         )
@@ -835,6 +913,7 @@ class ArgoExecutor(BaseExecutor):
     ):
         current_node = dag.start_at
         previous_node = None
+        previous_node_template_name = None
 
         templates: dict[str, TaskTemplate] = {}
         while True:
@@ -845,7 +924,7 @@ class ArgoExecutor(BaseExecutor):
             render_obj = get_renderer(working_on)(executor=self, node=working_on)
             render_obj.render(list_of_iter_values=list_of_iter_values)
 
-            clean_name = self.get_clean_name(working_on.internal_name)
+            clean_name = self.get_clean_name(working_on)
 
             # If a task template for clean name exists, retrieve it (could have been created by on_failure)
             template = templates.get(
@@ -854,31 +933,23 @@ class ArgoExecutor(BaseExecutor):
 
             # Link the current node to previous node, if the previous node was successful.
             if previous_node:
-                previous_node_template_name = previous_node
-                if dag.internal_branch_name:
-                    previous_node_template_name = (
-                        dag.internal_branch_name + "." + previous_node
-                    )
-
-                template.depends.append(
-                    f"{self.get_clean_name(previous_node_template_name)}.Succeeded"
-                )
+                template.depends.append(f"{previous_node_template_name}.Succeeded")
 
             templates[clean_name] = template
 
             # On failure nodes
             if working_on._get_on_failure_node():
-                failure_node = working_on._get_on_failure_node()
+                failure_node = dag.get_node_by_name(working_on._get_on_failure_node())
 
-                if dag.internal_branch_name:
-                    failure_node = dag.internal_branch_name + "." + failure_node
-
-                clean_name = self.get_clean_name(failure_node)
+                failure_template_name = self.get_clean_name(failure_node)
                 # If a task template for clean name exists, retrieve it
                 template = templates.get(
-                    clean_name, TaskTemplate(name=clean_name, template=clean_name)
+                    failure_template_name,
+                    TaskTemplate(
+                        name=failure_template_name, template=failure_template_name
+                    ),
                 )
-                template.depends.append(f"{self.get_clean_name(current_node)}.Failed")
+                template.depends.append(f"{clean_name}.Failed")
 
                 templates[clean_name] = template
 
@@ -894,6 +965,7 @@ class ArgoExecutor(BaseExecutor):
 
             # Move ahead to the next node
             previous_node = current_node
+            previous_node_template_name = self.get_clean_name(working_on)
 
             if working_on.node_type in ["success", "fail"]:
                 break
@@ -953,6 +1025,8 @@ class ArgoExecutor(BaseExecutor):
         for key, value in self.get_parameters().items():
             # Get the value from work flow parameters for dynamic behavior
             env_var = EnvVar(name=key, value=value)
+            if isinstance(value, dict) or isinstance(value, list):
+                continue
             specification.arguments.append(env_var)
 
         run_id_var = EnvVar(name="run_id", value="{{workflow.uid}}")
@@ -1007,7 +1081,7 @@ class ArgoExecutor(BaseExecutor):
             working_on=node, command=command, add_parameters=True
         )
 
-        clean_name = self.get_clean_name(node.name)
+        clean_name = self.get_clean_name(node)
         template = DagTemplate(name=clean_name, template=clean_name)
 
         specification.templates.extend([container_template])
