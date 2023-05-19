@@ -4,7 +4,7 @@ import random
 import shlex
 import string
 from collections import OrderedDict
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from magnus import defaults, integration, utils
 from magnus.executor import BaseExecutor
@@ -129,6 +129,13 @@ class TemplateDefaults(BaseModel):
     volumeMounts: List[VolumeMount] = []
 
 
+class Toleration(BaseModel):
+    effect: str
+    key: str
+    operator: str
+    value: str
+
+
 class Container(TemplateDefaults):
     """
     Renders:
@@ -144,11 +151,11 @@ class Container(TemplateDefaults):
     command: List[str]
     image: str
     env: List[Union[SecretEnvVar, EnvVar]] = []
+    nodeSelectors: Dict[str, str] = {}
+    tolerations: Optional[List[Toleration]] = []
 
     def dict(self, *args, **kwargs) -> dict:
         return_value = {}
-
-        # TODO: Retry should be part of template defaults
 
         objects = ["limits", "requests", "imagePullPolicy", "retry"]
         for obj in objects:
@@ -159,6 +166,12 @@ class Container(TemplateDefaults):
         return_value["command"] = self.command
         return_value["env"] = [e.dict() for e in self.env]
         return_value["volumeMounts"] = [volume.dict() for volume in self.volumeMounts]
+
+        if self.nodeSelectors:
+            return_value["nodeSelectors"] = self.nodeSelectors
+
+        if self.tolerations:
+            return_value["tolerations"] = [tol.dict() for tol in self.tolerations]
 
         return return_value
 
@@ -293,6 +306,8 @@ class Spec(BaseModel):
     volumes: List[Volume] = []
     parallelism: int = 0
     templateDefaults: TemplateDefaults = None
+    nodeSelector: dict = {}
+    tolerations: List[Toleration] = []
 
     def dict(self, *args, **kwargs):
         return_value = {
@@ -307,6 +322,12 @@ class Spec(BaseModel):
 
         if self.templateDefaults:
             return_value["templateDefaults"] = self.templateDefaults.dict()
+
+        if self.nodeSelector:
+            return_value["nodeSelector"] = self.nodeSelector
+
+        if self.tolerations:
+            return_value["tolerations"] = [tol.dict() for tol in self.tolerations]
 
         return return_value
 
@@ -552,6 +573,8 @@ class ArgoExecutor(BaseExecutor):
         # volume-name:mount_path, not available in executor_config
         persistent_volumes: dict = {}
         # TODO: Tolerations and node selectors should be added
+        node_selectors: dict = {}
+        tolerations: List[Toleration] = []
 
     def __init__(self, config: dict = None):
         super().__init__(config)
@@ -1010,6 +1033,9 @@ class ArgoExecutor(BaseExecutor):
 
         # Add volumes to specification
         self._add_volumes_to_specification(specification)
+
+        specification.nodeSelector = self.config.node_selectors
+        specification.tolerations = self.config.tolerations
 
         # Fill in the template defaults
         self._fill_template_defaults()
