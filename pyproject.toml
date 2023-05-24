@@ -56,6 +56,7 @@ python-semantic-release = "^7.33.1"
 "argo" = "magnus_extensions.executor.argo.implementation:ArgoExecutor"
 "k8s-job" = "magnus_extensions.executor.k8s_job.implementation:K8sJobExecutor"
 "slurm-job" = "magnus_extensions.executor.slurm_job.implementation:SlurmJobExecutor"
+"slurm" = "magnus_extensions.executor.slurm.implementation:SlurmExecutor"
 
 [tool.poetry.plugins."experiment_tracker"]
 "mlflow" = "magnus_extensions.experiment_tracker.mlflow.implementation:MLFlowExperimentTracker"
