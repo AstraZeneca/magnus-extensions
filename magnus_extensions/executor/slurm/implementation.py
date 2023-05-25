@@ -39,6 +39,8 @@ class DagTemplate(BaseModel):
                 'run_id=$(python -c "from magnus import utils; print(utils.generate_run_id())")\n'
             )
 
+            fw.write('echo "Running $run_id"')
+
             fw.write("# Exposing magnus specific environmental variables, if any!\n")
             for key, value in self.environment_variables.items():
                 fw.write(f'export MAGNUS_PRM_{key}="{value}"\n')
