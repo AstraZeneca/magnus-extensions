@@ -33,8 +33,8 @@ class K8sJobExecutor(BaseExecutor):
     service_name = "k8s-job"
 
     class Config(BaseExecutor.Config):
-        config_path: str
         docker_image: str
+        config_path: str = ""  # Let the client decide on the path to the config file.
         namespace: str = "default"
         cpu_limit: str = "250m"
         memory_limit: str = "1G"
@@ -105,7 +105,11 @@ class K8sJobExecutor(BaseExecutor):
 
     @property
     def _client(self):
-        k8s_config.load_kube_config(config_file=self.config.config_path)
+        if self.config.config_path:
+            k8s_config.load_kube_config(kube_config_path=self.config.config_path)
+        else:
+            # https://github.com/kubernetes-client/python/blob/master/kubernetes/base/config/__init__.py
+            k8s_config.load_config()
         return client
 
     @property
@@ -145,9 +149,7 @@ class K8sJobExecutor(BaseExecutor):
                 raise Exception(msg) from _e
             secret_as_env = V1EnvVar(
                 name=secret_env,
-                value_from=V1EnvVarSource(
-                    secret_key_ref=V1SecretKeySelector(name=secret_name, key=key)
-                ),
+                value_from=V1EnvVarSource(secret_key_ref=V1SecretKeySelector(name=secret_name, key=key)),
             )
             environment_variables.append(secret_as_env)
 
@@ -155,9 +157,7 @@ class K8sJobExecutor(BaseExecutor):
         # The parameters present in the environment override the parameters present in the parameters file
         # The values are coerced to be strings, hopefully they will be fine on the other side.
         for k, v in overridden_params.items():
-            environment_variables.append(
-                V1EnvVar(name=defaults.PARAMETER_PREFIX + k, value=str(v))
-            )
+            environment_variables.append(V1EnvVar(name=defaults.PARAMETER_PREFIX + k, value=str(v)))
 
         pod_volumes = []
         volume_mounts = []
@@ -165,14 +165,10 @@ class K8sJobExecutor(BaseExecutor):
             pod_volumes.append(
                 self._client.V1Volume(
                     name=claim_name,
-                    persistent_volume_claim=V1PersistentVolumeClaimVolumeSource(
-                        claim_name=claim
-                    ),
+                    persistent_volume_claim=V1PersistentVolumeClaimVolumeSource(claim_name=claim),
                 )
             )
-            volume_mounts.append(
-                self._client.V1VolumeMount(name=claim_name, mount_path=mount_path)
-            )
+            volume_mounts.append(self._client.V1VolumeMount(name=claim_name, mount_path=mount_path))
 
         base_container = self._client.V1Container(
             name=self.run_id,
@@ -230,9 +226,7 @@ class K8sJobExecutor(BaseExecutor):
             raise
 
     def execute_node(self, node: BaseNode, map_variable: dict = None, **kwargs):
-        step_log = self.run_log_store.create_step_log(
-            node.name, node._get_step_log_name(map_variable)
-        )
+        step_log = self.run_log_store.create_step_log(node.name, node._get_step_log_name(map_variable))
 
         self.add_code_identities(node=node, step_log=step_log)
 
@@ -242,9 +236,7 @@ class K8sJobExecutor(BaseExecutor):
 
         super()._execute_node(node, map_variable=map_variable, **kwargs)
 
-        step_log = self.run_log_store.get_step_log(
-            node._get_step_log_name(map_variable), self.run_id
-        )
+        step_log = self.run_log_store.get_step_log(node._get_step_log_name(map_variable), self.run_id)
         if step_log.status == defaults.FAIL:
             raise Exception(f"Step {node.name} failed")
 
@@ -259,9 +251,7 @@ class K8sJobExecutor(BaseExecutor):
         Raises:
             Exception: If the pipeline execution failed
         """
-        if (
-            stage != "traversal"
-        ):  # traversal does no actual execution, so return code is pointless
+        if stage != "traversal":  # traversal does no actual execution, so return code is pointless
             run_id = self.run_id
 
             run_log = self.run_log_store.get_run_log_by_id(run_id=run_id, full=False)
