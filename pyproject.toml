@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{include = "magnus_extensions"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.7"
 boto3 ={ version = "*", optional = true }
 kfp = {version= "^1.8.18", optional = true }
 sqlalchemy = { version = "*", optional = true }
